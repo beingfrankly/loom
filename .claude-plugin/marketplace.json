@@ -1,0 +1,20 @@
+{
+  "name": "moirai",
+  "owner": {
+    "name": "Frank van Eldijk"
+  },
+  "metadata": {
+    "description": "Multi-agent orchestration plugins for Claude Code",
+    "version": "0.4.0"
+  },
+  "plugins": [
+    {
+      "name": "moirai",
+      "source": "./moirai",
+      "description": "Multi-agent orchestration with Context → Plan → Review → Execute workflow. Named after the Moirai (the three Fates), Lachesis measures and directs the thread of work.",
+      "version": "0.4.0",
+      "keywords": ["orchestration", "multi-agent", "workflow", "planning", "moirai", "fates"],
+      "license": "MIT"
+    }
+  ]
+}
