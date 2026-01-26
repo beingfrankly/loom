@@ -1,8 +1,8 @@
-# Moirai - Claude Code Multi-Agent Orchestration
+# Loom - Claude Code Multi-Agent Orchestration
 
 ## Project Overview
 
-Moirai is a **Claude Code multi-agent orchestration plugin** that coordinates specialized AI agents to deliver complex features through a structured **Context → Plan → Review → Execute** workflow.
+Loom is a **Claude Code multi-agent orchestration plugin** that coordinates specialized AI agents to deliver complex features through a structured **Context → Plan → Review → Execute** workflow.
 
 > **Named after the Moirai** (the three Fates of Greek mythology), this plugin orchestrates the thread of development through Lachesis's measured direction.
 
@@ -10,16 +10,16 @@ Moirai is a **Claude Code multi-agent orchestration plugin** that coordinates sp
 
 | What | Where |
 |------|-------|
-| Plugin manifest | `moirai/.claude-plugin/plugin.json` |
-| Agent definitions | `moirai/agents/*.md` |
-| Skills (templates) | `moirai/skills/*/SKILL.md` |
-| Hooks (guardrails) | `moirai/hooks/hooks.json` |
-| Workflow documentation | `moirai/WORKFLOW.md` |
-| Installation guide | `moirai/README.md` |
+| Plugin manifest | `loom/.claude-plugin/plugin.json` |
+| Agent definitions | `loom/agents/*.md` |
+| Skills (templates) | `loom/skills/*/SKILL.md` |
+| Hooks (guardrails) | `loom/hooks/hooks.json` |
+| Workflow documentation | `loom/WORKFLOW.md` |
+| Installation guide | `loom/README.md` |
 
 ## Architecture: Skills-First
 
-Moirai uses **skills and native Claude Code tools** instead of MCP servers:
+Loom uses **skills and native Claude Code tools** instead of MCP servers:
 
 - **No external dependencies** - No npm packages required
 - **Native tools** - Agents use Read, Write, Edit, Glob, Grep, Task, Skill
@@ -31,8 +31,7 @@ Moirai uses **skills and native Claude Code tools** instead of MCP servers:
 ```
 lachesis/
 ├── CLAUDE.md                                     # This file
-├── moirai.zip                                    # Distribution archive
-└── moirai/                                       # Main plugin
+└── loom/                                         # Main plugin
     ├── .claude-plugin/plugin.json                # Plugin manifest
     ├── README.md                                 # Usage documentation
     ├── WORKFLOW.md                               # Detailed workflow docs
@@ -43,17 +42,18 @@ lachesis/
     │   ├── implementer.md                        # Developer (Sonnet)
     │   └── explorer.md                           # Scout (Haiku)
     ├── skills/                                   # Template skills
-    │   ├── moirai-workflow/SKILL.md              # Master workflow
+    │   ├── loom-workflow/SKILL.md                # Master workflow
     │   ├── context-template/SKILL.md             # context.md template
     │   ├── plan-template/SKILL.md                # implementation-plan.md template
     │   ├── tasks-template/SKILL.md               # tasks.md template
-    │   └── review-template/SKILL.md              # review files template
+    │   ├── review-template/SKILL.md              # review files template
+    │   └── research-template/SKILL.md            # research.md template
     └── hooks/hooks.json                          # XML-structured guardrails
 ```
 
 ## The Five Agents
 
-See `moirai/agents/` for full definitions. Each agent has specific responsibilities:
+See `loom/agents/` for full definitions. Each agent has specific responsibilities:
 
 | Agent | Model | Role | Key Constraint |
 |-------|-------|------|----------------|
@@ -73,10 +73,11 @@ Skills provide templates and enforce structure. Before writing any artifact, age
 | `implementation-plan.md` | `plan-template` |
 | `tasks.md` | `tasks-template` |
 | `review-*.md` | `review-template` |
+| `research.md` | `research-template` |
 
 ## Workflow Phases
 
-See `moirai/WORKFLOW.md` for complete documentation with diagrams.
+See `loom/WORKFLOW.md` for complete documentation with diagrams.
 
 ```
 1. CONTEXT DEFINITION → context.md
@@ -115,7 +116,7 @@ tools:
 
 ### Working with Skills
 
-Skills go in `moirai/skills/{skill-name}/SKILL.md`:
+Skills go in `loom/skills/{skill-name}/SKILL.md`:
 
 ```yaml
 ---
@@ -134,7 +135,7 @@ user-invocable: true
 
 ### Working with Hooks
 
-Hooks defined in `moirai/hooks/hooks.json`:
+Hooks defined in `loom/hooks/hooks.json`:
 
 ```json
 {
@@ -157,7 +158,7 @@ Hooks defined in `moirai/hooks/hooks.json`:
 
 ### Session Artifact Formats
 
-All artifacts are Markdown files in `.moirai/sessions/{ticket-id}/`.
+All artifacts are Markdown files in `.loom/sessions/{ticket-id}/`.
 
 **Checkbox syntax for tasks.md:**
 | Checkbox | Status |
@@ -171,32 +172,32 @@ All artifacts are Markdown files in `.moirai/sessions/{ticket-id}/`.
 
 1. **Create test marketplace:**
    ```bash
-   mkdir -p ~/test-marketplace/moirai
-   cp -r moirai/* ~/test-marketplace/moirai/
+   mkdir -p ~/test-marketplace/loom
+   cp -r loom/* ~/test-marketplace/loom/
    ```
 
 2. **Add to Claude Code:**
    ```
    /plugin marketplace add ~/test-marketplace
-   /plugin install moirai
+   /plugin install loom
    ```
 
 3. **Verify installation:**
    - Check agent availability in `/agents`
-   - Verify skills load with `Skill(skill="moirai-workflow")`
+   - Verify skills load with `Skill(skill="loom-workflow")`
 
 4. **Iterate:**
    ```
-   /plugin uninstall moirai
+   /plugin uninstall loom
    # Make changes
-   /plugin install moirai
+   /plugin install loom
    ```
 
 ## Creating a Distribution Archive
 
 ```bash
 cd /Users/Frank.vanEldijk/code/lachesis
-zip -r moirai.zip moirai
+zip -r loom.zip loom
 ```
 
 ## Key Design Principles
@@ -212,30 +213,30 @@ zip -r moirai.zip moirai
 
 ## Documentation References
 
-- **Installation & Usage**: See `moirai/README.md`
-- **Detailed Workflow**: See `moirai/WORKFLOW.md` (includes Mermaid diagrams)
-- **Agent Specifications**: See individual files in `moirai/agents/`
-- **Template Skills**: See individual files in `moirai/skills/*/SKILL.md`
+- **Installation & Usage**: See `loom/README.md`
+- **Detailed Workflow**: See `loom/WORKFLOW.md` (includes Mermaid diagrams)
+- **Agent Specifications**: See individual files in `loom/agents/`
+- **Template Skills**: See individual files in `loom/skills/*/SKILL.md`
 
 ## Common Tasks
 
 ### Adding a New Agent
 
-1. Create `moirai/agents/{agent-name}.md` with frontmatter
+1. Create `loom/agents/{agent-name}.md` with frontmatter
 2. Define tools the agent can use (native Claude Code tools)
 3. Add XML-structured instructions
-4. Document in `moirai/README.md`
+4. Document in `loom/README.md`
 
 ### Adding a New Skill
 
-1. Create `moirai/skills/{skill-name}/SKILL.md`
+1. Create `loom/skills/{skill-name}/SKILL.md`
 2. Add YAML frontmatter with name, description
 3. Include template with XML structure
 4. Document validation rules and next steps
 
 ### Modifying Hook Guardrails
 
-Edit `moirai/hooks/hooks.json`:
+Edit `loom/hooks/hooks.json`:
 - Use XML tags for structured prompts
 - Add `PreToolCall` matchers for specific tool guardrails
 - Keep prompts focused on rules and checklists
@@ -251,6 +252,6 @@ Edit `moirai/hooks/hooks.json`:
 
 ## Version Information
 
-- **Plugin Version**: 0.4.0
+- **Plugin Version**: 0.5.0
 - **License**: MIT
 - **Author**: Frank van Eldijk

@@ -1,0 +1,13 @@
+# Distribution archives
+*.zip
+
+# OS files
+.DS_Store
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Loom session artifacts (generated at runtime)
+.loom/sessions/

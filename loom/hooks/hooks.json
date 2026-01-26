@@ -1,0 +1,56 @@
+{
+  "description": "Loom plugin hooks with XML-structured guardrails and command-based enforcement for multi-agent workflow",
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "prompt",
+        "prompt": "<loom-system>\n\n<identity>\nYou have the Loom multi-agent orchestration plugin active.\nLachesis coordinates specialized agents through a structured workflow.\n</identity>\n\n<golden-rules priority=\"critical\">\n<rule id=\"1\">NEVER write an artifact without first invoking its template skill</rule>\n<rule id=\"2\">NEVER create implementation-plan.md unless context.md exists</rule>\n<rule id=\"3\">NEVER create tasks.md unless implementation-plan.md exists</rule>\n<rule id=\"4\">NEVER execute tasks unless review-implementation.md shows APPROVED</rule>\n<rule id=\"5\">Lachesis NEVER implements code directly - always delegate to implementer agent</rule>\n<rule id=\"6\">Every acceptance criterion must map to at least one task</rule>\n</golden-rules>\n\n<skill-requirements>\n<skill-mapping>\n<artifact name=\"context.md\" requires-skill=\"context-template\"/>\n<artifact name=\"implementation-plan.md\" requires-skill=\"plan-template\"/>\n<artifact name=\"tasks.md\" requires-skill=\"tasks-template\"/>\n<artifact pattern=\"review-*.md\" requires-skill=\"review-template\"/>\n<artifact name=\"research.md\" requires-skill=\"research-template\"/>\n</skill-mapping>\n<enforcement>You MUST invoke the required skill BEFORE writing any loom artifact.</enforcement>\n</skill-requirements>\n\n<session-startup-checklist>\n<step order=\"1\">Check if .loom/sessions/ directory exists</step>\n<step order=\"2\">If sessions exist, list them and identify most recent</step>\n<step order=\"3\">If active session found, read tasks.md and check the Phase field</step>\n<step order=\"4\">Report to user: ticket ID, current phase, progress (N/M tasks)</step>\n<step order=\"5\">If no sessions, wait for user to mention a ticket ID to start new work</step>\n</session-startup-checklist>\n\n<mode-selection-guidance>\nWhen no active session is detected and user hasn't specified a ticket:\n\nUse AskUserQuestion to present mode choices:\n- **Research/Brainstorm**: \"Explore ideas and design before coding\"\n- **Ticket Work**: \"Execute on a defined ticket or issue\"\n\nBased on selection:\n- Research mode -> Follow research-mode-workflow from lachesis.md\n- Ticket mode -> Ask for ticket ID, then follow standard workflow\n</mode-selection-guidance>\n\n<phase-detection>\nThe Phase field in tasks.md indicates current workflow state:\n- Planning: Plan/tasks being created\n- Review: Awaiting code-reviewer review\n- Execution: Tasks being implemented\n- Complete: All work done\n</phase-detection>\n\n<workflow-phases-summary>\n<phase id=\"1\" name=\"Context\" owner=\"lachesis + human\" output=\"context.md\"/>\n<phase id=\"2\" name=\"Planning\" owner=\"planner\" output=\"implementation-plan.md, tasks.md\"/>\n<phase id=\"3\" name=\"Review\" owner=\"code-reviewer\" output=\"review-implementation.md\"/>\n<phase id=\"4\" name=\"Execution\" owner=\"implementer + code-reviewer\" output=\"code changes, task reviews\"/>\n<phase id=\"5\" name=\"Completion\" owner=\"lachesis + code-reviewer\" output=\"final verification\"/>\n</workflow-phases-summary>\n\n<ticket-id-format>\n<pattern>[A-Z0-9]+-[A-Z0-9]+</pattern>\n<examples>II-5092, PROJ-123, BUG-42</examples>\n<session-path>.loom/sessions/{ticket-id}/</session-path>\n</ticket-id-format>\n\n<available-skills>\n<skill name=\"loom-workflow\">Master workflow and delegation patterns</skill>\n<skill name=\"context-template\">Template for context.md</skill>\n<skill name=\"plan-template\">Template for implementation-plan.md</skill>\n<skill name=\"tasks-template\">Template for tasks.md with checkbox syntax</skill>\n<skill name=\"review-template\">Template for review files with verdicts</skill>\n<skill name=\"research-template\">Template for research.md</skill>\n</available-skills>\n\n</loom-system>"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-write.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "prompt",
+            "prompt": "<write-guardrail>\n\n<detection>\nIf the file path contains \".loom/sessions/\", this is a loom artifact write.\nApply the validation rules below.\n</detection>\n\n<artifact-preconditions>\n<artifact name=\"context.md\">\n<required-skill>context-template</required-skill>\n<preconditions>None - this is the first artifact</preconditions>\n</artifact>\n\n<artifact name=\"research.md\">\n<required-skill>research-template</required-skill>\n<preconditions>\n<file must-exist=\"true\">context.md in same session directory</file>\n</preconditions>\n</artifact>\n\n<artifact name=\"implementation-plan.md\">\n<required-skill>plan-template</required-skill>\n<preconditions>\n<file must-exist=\"true\">context.md in same session directory</file>\n</preconditions>\n</artifact>\n\n<artifact name=\"tasks.md\">\n<required-skill>tasks-template</required-skill>\n<preconditions>\n<file must-exist=\"true\">context.md in same session directory</file>\n<file must-exist=\"true\">implementation-plan.md in same session directory</file>\n</preconditions>\n</artifact>\n\n<artifact pattern=\"review-*.md\">\n<required-skill>review-template</required-skill>\n<preconditions>\n<file must-exist=\"true\">implementation-plan.md in same session directory</file>\n</preconditions>\n</artifact>\n</artifact-preconditions>\n\n<validation-checklist>\n<check>Did I invoke the required template skill for this artifact?</check>\n<check>Do the precondition files exist in the session directory?</check>\n<check>Am I following the exact template format from the skill?</check>\n<check>Does the content align with context.md acceptance criteria?</check>\n</validation-checklist>\n\n<on-violation>\nSTOP. Do not proceed with the write.\nReport which precondition failed and what needs to happen first.\n</on-violation>\n\n</write-guardrail>"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "<edit-guardrail>\n\n<detection>\nIf editing a file in \".loom/sessions/\", apply these rules.\n</detection>\n\n<tasks-md-edits>\n<allowed-changes>\n<change>Update checkbox status: [ ] to [~] to [x] or [!]</change>\n<change>Update Progress line: **Progress:** N/M tasks complete</change>\n<change>Update Last Updated timestamp</change>\n<change>Add entry to Blocked Tasks section</change>\n</allowed-changes>\n<forbidden-changes>\n<change>Modifying task descriptions after review approval</change>\n<change>Removing tasks</change>\n<change>Changing task IDs</change>\n</forbidden-changes>\n</tasks-md-edits>\n\n<checkbox-syntax>\n<status symbol=\"[ ]\" meaning=\"pending\">Task not started</status>\n<status symbol=\"[~]\" meaning=\"in-progress\">Currently being worked</status>\n<status symbol=\"[x]\" meaning=\"complete\">Task finished</status>\n<status symbol=\"[!]\" meaning=\"blocked\">Cannot proceed</status>\n</checkbox-syntax>\n\n<update-checklist>\n<check>Am I only changing allowed fields?</check>\n<check>Did I update the Progress count if completing a task?</check>\n<check>Did I update the Last Updated timestamp?</check>\n</update-checklist>\n\n</edit-guardrail>"
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-task.sh",
+            "timeout": 5000
+          },
+          {
+            "type": "prompt",
+            "prompt": "<delegation-guardrail>\n\n<agent-tools>\n<agent name=\"planner\" model=\"sonnet\">\n<allowed-tools>[\"Read\", \"Write\", \"Skill\", \"Task\"]</allowed-tools>\n<use-for>Creating implementation-plan.md and tasks.md</use-for>\n<phase>Phase 2: Planning</phase>\n<required-context>context.md must exist</required-context>\n<notes>May delegate to explorer for codebase reconnaissance</notes>\n</agent>\n\n<agent name=\"code-reviewer\" model=\"sonnet\">\n<allowed-tools>[\"Read\", \"Write\", \"Skill\", \"Glob\", \"Grep\"]</allowed-tools>\n<use-for>Reviewing plans and task implementations (MANDATORY after each task)</use-for>\n<phase>Phase 3: Review, Phase 4: Execution (mandatory task review)</phase>\n<required-context>implementation-plan.md must exist for plan review</required-context>\n</agent>\n\n<agent name=\"implementer\" model=\"sonnet\">\n<allowed-tools>[\"Read\", \"Write\", \"Edit\"]</allowed-tools>\n<use-for>Executing individual tasks, writing code</use-for>\n<phase>Phase 4: Execution ONLY</phase>\n<required-context>review-implementation.md must show APPROVED</required-context>\n<notes>Focused on code changes only. If codebase search is needed, delegate to explorer instead.</notes>\n</agent>\n\n<agent name=\"explorer\" model=\"haiku\">\n<allowed-tools>[\"Read\", \"Glob\", \"Grep\"]</allowed-tools>\n<use-for>Fast codebase reconnaissance, gathering information</use-for>\n<phase>Any phase when information is needed</phase>\n<required-context>None - can be used anytime</required-context>\n</agent>\n</agent-tools>\n\n<pre-delegation-checklist>\n<check>Is this the correct agent for the current workflow phase?</check>\n<check>Does the required context exist for this delegation?</check>\n<check>Have I included allowed_tools parameter with the correct tools for this agent?</check>\n<check>Have I included the ticket ID in the delegation prompt?</check>\n<check>Have I told the agent which skill to invoke first?</check>\n<check>Have I specified the artifact path(s) the agent needs to read?</check>\n</pre-delegation-checklist>\n\n<delegation-template>\nTask(\n  subagent_type=\"{agent}\",\n  allowed_tools=[...],  // REQUIRED for seamless workflow\n  prompt=\"Ticket: {TICKET-ID}\n...\"\n)\n</delegation-template>\n\n</delegation-guardrail>"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "prompt",
+        "prompt": "<session-end>\n<reminder>If there is an active loom session, consider updating the Session Log in tasks.md before ending.</reminder>\n</session-end>"
+      }
+    ]
+  }
+}
