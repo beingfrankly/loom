@@ -7,7 +7,7 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""')
 
 # Only validate loom artifacts
-if [[ "$FILE_PATH" != *".loom/sessions/"* ]]; then
+if [[ "$FILE_PATH" != *".claude/loom/threads/"* ]]; then
   exit 0
 fi
 

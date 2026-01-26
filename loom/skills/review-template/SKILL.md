@@ -66,8 +66,8 @@ Examples: Alternative approaches, future considerations
 </severity-levels>
 
 <file-location>
-.loom/sessions/{ticket-id}/review-implementation.md
-.loom/sessions/{ticket-id}/review-task-{NNN}.md
+.claude/loom/threads/{ticket-id}/review-implementation.md
+.claude/loom/threads/{ticket-id}/review-task-{NNN}.md
 </file-location>
 
 <template-implementation-review>

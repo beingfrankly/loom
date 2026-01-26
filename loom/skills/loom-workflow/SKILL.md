@@ -54,7 +54,7 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 
 <steps>
 <step order="1">Invoke the context-template skill</step>
-<step order="2">Create session directory: .loom/sessions/{ticket-id}/</step>
+<step order="2">Create session directory: .claude/loom/threads/{ticket-id}/</step>
 <step order="3">Collaborate with human to define:
   - What: The deliverable (scope)
   - Why: Business value
@@ -204,7 +204,7 @@ Task(
   prompt="Ticket: {TICKET-ID}
 
 First invoke the plan-template skill, then read context.md at:
-.loom/sessions/{ticket-id}/context.md
+.claude/loom/threads/{ticket-id}/context.md
 
 Create implementation-plan.md following the template.
 Then invoke tasks-template skill and create tasks.md."
@@ -236,7 +236,7 @@ Task(
 Task: {TASK-ID}
 
 Read the task details from:
-.loom/sessions/{ticket-id}/tasks.md
+.claude/loom/threads/{ticket-id}/tasks.md
 
 Execute ONLY this single task. Do not work on other tasks.
 If you need to search the codebase, request that lachesis delegate to explorer."

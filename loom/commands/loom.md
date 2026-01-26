@@ -25,7 +25,7 @@ Have a conversation to understand:
 - **Out of Scope** - What are we explicitly NOT doing?
 - **Constraints** - Technical or business limitations?
 
-When you have enough information, invoke the `context-template` skill and write context.md to `.loom/sessions/{ticket-id}/context.md`
+When you have enough information, invoke the `context-template` skill and write context.md to `.claude/loom/threads/{ticket-id}/context.md`
 
 ### Step 2: Create Implementation Plan
 Once context.md is written:
@@ -51,11 +51,11 @@ Once all three documents are created, inform the human:
 2. **Be thorough** - Every acceptance criterion must be covered
 3. **Stay focused** - Keep the human on track through each phase
 4. **Use skills** - Always invoke the template skill before writing each artifact
-5. **Create the session directory** first: `.loom/sessions/{ticket-id}/`
+5. **Create the session directory** first: `.claude/loom/threads/{ticket-id}/`
 
 ## Session Path
 
-All artifacts go in: `.loom/sessions/{ticket-id}/`
+All artifacts go in: `.claude/loom/threads/{ticket-id}/`
 - context.md
 - implementation-plan.md
 - tasks.md

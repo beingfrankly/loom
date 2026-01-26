@@ -22,7 +22,7 @@ All planning, reviews, and implementations trace back to this document.
 </validation-rules>
 
 <file-location>
-.loom/sessions/{ticket-id}/context.md
+.claude/loom/threads/{ticket-id}/context.md
 </file-location>
 
 <template>

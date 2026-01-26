@@ -100,7 +100,7 @@ Skills provide templates and workflow guidance. Agents invoke skills before writ
 | Hook | Trigger | Purpose |
 |------|---------|---------|
 | `SessionStart` | Session begins | Load workflow rules, check for active sessions |
-| `PreToolCall` | Before Write/Edit/Task | Enforce skill invocation and preconditions |
+| `PreToolUse` | Before Write/Edit/Task | Enforce skill invocation and preconditions |
 | `Stop` | Session ends | Remind to update session log |
 
 **Note:** Skills marked `user-invocable: true` can be invoked directly by users via `/skill-name` or the Skill tool. All Loom skills are user-invocable for flexibility.
@@ -236,7 +236,7 @@ Human: I need to work on ii-5092 - adding rate limiting
 Lachesis: I'll coordinate this with Loom.
 
 [Invokes context-template skill]
-[Creates .loom/sessions/ii-5092/]
+[Creates .claude/loom/threads/ii-5092/]
 
 Let's define the context:
 - What: Rate limiting middleware for the REST API
@@ -291,7 +291,7 @@ Every review includes a "Meta-Learning Notes" section:
 - **Prevention:** Add "handles dependency failures" to task template
 ```
 
-Analyze `.loom/sessions/*/review-*.md` over time to improve your process.
+Analyze `.claude/loom/threads/*/review-*.md` over time to improve your process.
 
 ## Plugin Structure
 

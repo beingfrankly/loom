@@ -1,6 +1,6 @@
 {
   "name": "loom",
-  "version": "0.5.2",
+  "version": "0.5.6",
   "description": "Multi-agent orchestration plugin for Claude Code. Named after the Moirai (the three Fates of Greek mythology), this plugin coordinates specialized AI agents through a structured Context -> Plan -> Review -> Execute workflow.",
   "author": {
     "name": "Frank van Eldijk"
@@ -17,5 +17,6 @@
   ],
   "license": "MIT",
   "skills": "./skills",
-  "commands": "./commands"
+  "commands": "./commands",
+  "agents": "./agents"
 }

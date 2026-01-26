@@ -48,7 +48,11 @@ lachesis/
     │   ├── tasks-template/SKILL.md               # tasks.md template
     │   ├── review-template/SKILL.md              # review files template
     │   └── research-template/SKILL.md            # research.md template
-    └── hooks/hooks.json                          # XML-structured guardrails
+    └── hooks/                                    # Hook guardrails
+        ├── hooks.json                            # XML-structured prompts
+        └── scripts/                              # Command hooks
+            ├── validate-write.sh                 # File precondition checks
+            └── validate-task.sh                  # Subagent type validation
 ```
 
 ## The Five Agents
@@ -141,7 +145,7 @@ Hooks defined in `loom/hooks/hooks.json`:
 {
   "hooks": {
     "SessionStart": [{ "type": "prompt", "prompt": "<xml-structured-rules>..." }],
-    "PreToolCall": [
+    "PreToolUse": [
       { "matcher": "Write", "hooks": [{ "type": "prompt", "prompt": "..." }] }
     ],
     "Stop": [{ "type": "prompt", "prompt": "..." }]
@@ -151,14 +155,14 @@ Hooks defined in `loom/hooks/hooks.json`:
 
 **Available hooks:**
 - `SessionStart` - Load workflow rules at session start
-- `PreToolCall` - Inject guardrails before specific tools (Write, Edit, Task)
+- `PreToolUse` - Inject guardrails before specific tools (Write, Edit, Task)
 - `Stop` - Session cleanup
 
 **Enforcement Model:** Hooks use `type: "prompt"` for advisory enforcement - the AI is guided but not programmatically blocked. This collaborative model works well when the AI is a trusted participant.
 
 ### Session Artifact Formats
 
-All artifacts are Markdown files in `.loom/sessions/{ticket-id}/`.
+All artifacts are Markdown files in `.claude/loom/threads/{ticket-id}/`.
 
 **Checkbox syntax for tasks.md:**
 | Checkbox | Status |
@@ -238,7 +242,7 @@ zip -r loom.zip loom
 
 Edit `loom/hooks/hooks.json`:
 - Use XML tags for structured prompts
-- Add `PreToolCall` matchers for specific tool guardrails
+- Add `PreToolUse` matchers for specific tool guardrails
 - Keep prompts focused on rules and checklists
 
 ## Troubleshooting
@@ -252,6 +256,6 @@ Edit `loom/hooks/hooks.json`:
 
 ## Version Information
 
-- **Plugin Version**: 0.5.1
+- **Plugin Version**: 0.5.6
 - **License**: MIT
 - **Author**: Frank van Eldijk

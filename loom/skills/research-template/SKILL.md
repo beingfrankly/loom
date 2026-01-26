@@ -23,7 +23,7 @@ The planner agent reads this artifact to inform implementation-plan.md when rese
 </validation-rules>
 
 <file-location>
-.loom/sessions/{session-id}/research.md
+.claude/loom/threads/{session-id}/research.md
 </file-location>
 
 <preconditions>

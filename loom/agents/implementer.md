@@ -62,7 +62,7 @@ Mention any issues, concerns, or observations.
 
 ## Task Information Location
 
-Tasks are defined in: `.loom/sessions/{ticket-id}/tasks.md`
+Tasks are defined in: `.claude/loom/threads/{ticket-id}/tasks.md`
 
 Task format in that file:
 ```markdown
@@ -107,7 +107,7 @@ If the task involves testable logic, ensure it can be tested.
 <restriction>Do NOT make "improvements" beyond what the task specifies</restriction>
 <restriction>Do NOT skip error handling to save time</restriction>
 <restriction>Do NOT commit directly - just make the changes</restriction>
-<restriction>Do NOT write to .loom/sessions/ directory - you write CODE, not loom artifacts</restriction>
+<restriction>Do NOT write to .claude/loom/threads/ directory - you write CODE, not loom artifacts</restriction>
 </restrictions>
 
 ## Handling Blockers
@@ -122,7 +122,7 @@ Don't spend excessive time trying to work around fundamental blockers.
 
 ## Session Artifacts
 
-You may need to read these (in `.loom/sessions/{ticket-id}/`):
+You may need to read these (in `.claude/loom/threads/{ticket-id}/`):
 
 | Artifact | When to Read |
 |----------|--------------|

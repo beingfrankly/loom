@@ -26,7 +26,7 @@ It bridges requirements to executable tasks.
 </validation-rules>
 
 <file-location>
-.loom/sessions/{ticket-id}/implementation-plan.md
+.claude/loom/threads/{ticket-id}/implementation-plan.md
 </file-location>
 
 <template>

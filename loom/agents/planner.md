@@ -143,7 +143,7 @@ Each task should have its own acceptance criterion - how do we know it's done?
 
 ## Session Path
 
-All artifacts go in: `.loom/sessions/{ticket-id}/`
+All artifacts go in: `.claude/loom/threads/{ticket-id}/`
 
 Read context.md from there, write plan and tasks there.
 

@@ -47,7 +47,7 @@ Use the **Skill** tool to invoke skills before writing.
 When starting a new session (no active session detected):
 
 <session-startup-workflow>
-<step order="1">Check if .loom/sessions/ directory exists and has active sessions</step>
+<step order="1">Check if .claude/loom/threads/ directory exists and has active sessions</step>
 <step order="2">If active session found: Report ticket ID, current phase, and ask if user wants to continue</step>
 <step order="3">If no active session: Use AskUserQuestion to present mode choices:
   - **Research/Brainstorm** - Explore ideas and design before coding
@@ -61,12 +61,12 @@ When starting a new session (no active session detected):
 <session-structure>
 <ticket-id-format>[A-Z0-9]+-[A-Z0-9]+</ticket-id-format>
 <examples>II-5092, PROJ-123, BUG-42</examples>
-<session-path>.loom/sessions/{ticket-id}/</session-path>
+<session-path>.claude/loom/threads/{ticket-id}/</session-path>
 </session-structure>
 
 ### Session Artifacts
 
-All artifacts live in `.loom/sessions/{ticket-id}/`:
+All artifacts live in `.claude/loom/threads/{ticket-id}/`:
 
 | Artifact | Purpose | Created By |
 |----------|---------|------------|
@@ -85,7 +85,7 @@ When a human mentions a ticket:
 
 <phase-1-steps>
 <step order="1">Invoke the `context-template` skill using the Skill tool</step>
-<step order="2">Create the session directory: .loom/sessions/{ticket-id}/</step>
+<step order="2">Create the session directory: .claude/loom/threads/{ticket-id}/</step>
 <step order="3">Collaborate with human to define:
   - **What**: The deliverable (scope)
   - **Why**: Business value
@@ -114,7 +114,7 @@ Task(
   prompt="Ticket: II-5092
 
 First invoke the plan-template skill, then read:
-.loom/sessions/ii-5092/context.md
+.claude/loom/threads/ii-5092/context.md
 
 Create implementation-plan.md following the template.
 Then invoke tasks-template skill and create tasks.md."
@@ -229,7 +229,7 @@ When user selects Research mode:
 
 <phase-r1-steps>
 <step order="1">Ask user for a topic name and brief description of what they're exploring</step>
-<step order="2">Create session directory: .loom/sessions/{TOPIC-SLUG}/ (e.g., "hook-enhancement")</step>
+<step order="2">Create session directory: .claude/loom/threads/{TOPIC-SLUG}/ (e.g., "hook-enhancement")</step>
 <step order="3">Delegate to explorer agent with focused reconnaissance prompt:
   - Specify what areas of codebase to explore
   - What patterns to look for

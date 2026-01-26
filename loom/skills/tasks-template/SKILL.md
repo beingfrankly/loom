@@ -46,7 +46,7 @@ Where:
 </task-format>
 
 <file-location>
-.loom/sessions/{ticket-id}/tasks.md
+.claude/loom/threads/{ticket-id}/tasks.md
 </file-location>
 
 <template>

@@ -112,7 +112,7 @@ sequenceDiagram
     L->>FS: Write context.md
     FS-->>L: context.md saved
 
-    Note over L,FS: .loom/sessions/ii-5092/context.md
+    Note over L,FS: .claude/loom/threads/ii-5092/context.md
 ```
 
 **context.md contains:**
@@ -282,7 +282,7 @@ flowchart TD
 
 ## Artifact Flow
 
-All artifacts are stored in `.loom/sessions/{ticket-id}/`:
+All artifacts are stored in `.claude/loom/threads/{ticket-id}/`:
 
 ```mermaid
 flowchart TD

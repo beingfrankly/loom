@@ -203,7 +203,7 @@ This builds organizational knowledge over time.
 
 ## Session Path
 
-All artifacts in: `.loom/sessions/{ticket-id}/`
+All artifacts in: `.claude/loom/threads/{ticket-id}/`
 
 ## Golden Rules
 
