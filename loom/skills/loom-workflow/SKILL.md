@@ -178,23 +178,166 @@ This prevents endless "gold-plating" loops. Human must decide:
 
 <session-management>
 <ticket-id-format>
-<pattern>[A-Z0-9]+-[A-Z0-9]+</pattern>
-<examples>II-5092, PROJ-123, BUG-42, FEAT-1</examples>
-<normalize>lowercase for directory names</normalize>
+<examples>PROJ-123 (Jira), #456 (GitHub), feature-auth-flow (custom)</examples>
+<normalize>lowercase for directory names, special chars replaced with hyphens</normalize>
 </ticket-id-format>
 
 <directory-structure>
-.loom/
-  sessions/
-    {ticket-id}/
-      context.md
-      implementation-plan.md
-      tasks.md                 # includes Session Log
-      review-implementation.md
-      review-task-001.md
-      review-task-002.md
+.claude/loom/threads/
+  {ticket-id}/
+    state.json               # Workflow state tracking
+    context.md
+    review-context.md        # Context review
+    implementation-plan.md
+    review-plan.md           # Plan review
+    tasks.md                 # includes Session Log
+    review-tasks.md          # Tasks review
+    review-task-001.md       # Individual task reviews
+    review-task-002.md
 </directory-structure>
 </session-management>
+
+<state-management>
+
+<overview>
+Loom tracks workflow state in state.json to enforce review-gated phase progression.
+State is automatically updated by hooks after agent delegations complete.
+Human commands provide intervention points for approval, rejection, and skipping.
+</overview>
+
+<state-file>
+state.json is created automatically when context.md is first written.
+
+```json
+{
+  "ticket": "PROJ-123",
+  "phase": "context | planning | execution | complete",
+  "context_reviewed": false,
+  "plan_reviewed": false,
+  "tasks_reviewed": false,
+  "current_task_id": null,
+  "task_status": null,
+  "cycle_count": 0,
+  "started_at": "2024-01-15T10:00:00Z",
+  "last_updated": "2024-01-15T12:30:00Z"
+}
+```
+
+<field name="phase">Current workflow phase</field>
+<field name="context_reviewed">Whether context.md has been reviewed and APPROVED</field>
+<field name="plan_reviewed">Whether implementation-plan.md has been reviewed and APPROVED</field>
+<field name="tasks_reviewed">Whether tasks.md has been reviewed and APPROVED</field>
+<field name="current_task_id">ID of task currently being worked</field>
+<field name="task_status">Status within execution: null | implementing | awaiting_review | addressing_feedback | awaiting_approval | blocked</field>
+<field name="cycle_count">Number of revision cycles for current task (max 3)</field>
+</state-file>
+
+<state-transitions>
+
+<transition from="context" to="planning">
+Trigger: review-context.md created with APPROVED verdict
+Auto-updated by: PostToolUse hook after code-reviewer completes
+</transition>
+
+<transition from="planning" to="execution">
+Trigger: review-tasks.md created with APPROVED verdict
+Auto-updated by: PostToolUse hook after code-reviewer completes
+</transition>
+
+<transition task_status="null -> implementing">
+Trigger: Delegate to loom:implementer
+Auto-updated by: PostToolUse hook after delegation
+</transition>
+
+<transition task_status="implementing -> awaiting_review">
+Trigger: Implementer completes
+Auto-updated by: PostToolUse hook
+</transition>
+
+<transition task_status="awaiting_review -> awaiting_approval">
+Trigger: Code-reviewer returns APPROVED
+Auto-updated by: PostToolUse hook
+</transition>
+
+<transition task_status="awaiting_review -> addressing_feedback">
+Trigger: Code-reviewer returns NEEDS_REVISION
+Auto-updated by: PostToolUse hook (also increments cycle_count)
+</transition>
+
+<transition task_status="awaiting_approval -> null (next task)">
+Trigger: Human uses /loom-approve
+Manual action required
+</transition>
+
+<transition task_status="* -> addressing_feedback">
+Trigger: Human uses /loom-reject
+Manual action required (also increments cycle_count)
+</transition>
+
+<transition task_status="* -> blocked">
+Trigger: cycle_count reaches 3, or human uses /loom-skip
+</transition>
+
+</state-transitions>
+
+<review-gates>
+Hooks enforce that each phase transition requires review approval:
+
+<gate artifact="implementation-plan.md">
+Blocked until: review-context.md exists with APPROVED verdict
+Enforced by: validate-write.sh PreToolUse hook
+</gate>
+
+<gate artifact="tasks.md">
+Blocked until: review-plan.md exists with APPROVED verdict
+Enforced by: validate-write.sh PreToolUse hook
+</gate>
+
+<gate artifact="delegation to implementer">
+Blocked until: review-tasks.md exists with APPROVED verdict
+Enforced by: validate-task.sh PreToolUse hook
+</gate>
+
+<gate artifact="next task after code review">
+Blocked until: Human approves via /loom-approve
+Enforced by: state.json task_status check
+</gate>
+</review-gates>
+
+</state-management>
+
+<human-commands>
+
+<command name="/loom-status">
+Display current workflow state, progress, and suggested next action.
+Use to check where you are in the workflow.
+</command>
+
+<command name="/loom-approve">
+Approve the current task after code review.
+- Marks task [x] complete
+- Resets cycle_count to 0
+- Clears current_task_id
+- Reports next pending task
+</command>
+
+<command name="/loom-reject" args="feedback">
+Reject current task and request another revision.
+- Increments cycle_count
+- Sets task_status to addressing_feedback
+- Records feedback in Session Log
+- If cycle_count >= 3, marks task as blocked
+</command>
+
+<command name="/loom-skip" args="reason">
+Skip a blocked task and move to the next one.
+- Marks task [!] blocked
+- Records reason in Blocked Tasks section
+- Resets cycle_count
+- Reports next pending task
+</command>
+
+</human-commands>
 
 <delegation-patterns>
 <pattern name="delegate-to-planner">
