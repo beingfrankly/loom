@@ -15,69 +15,60 @@ This is the final checkpoint before marking a task complete and moving to the ne
 
 <when-to-use>
 - After code-reviewer gives APPROVED verdict on a task
-- When task_status is "awaiting_approval" in state.json
 - When human is satisfied with the implementation quality
+- To accept a task that reached max cycles as "good enough"
 </when-to-use>
 
 <workflow>
-<step order="1">Detect the active loom session</step>
-<step order="2">Read state.json to get current task info</step>
-<step order="3">Verify task_status is "awaiting_approval" or task was recently reviewed</step>
-<step order="4">Update tasks.md: change task checkbox from [~] to [x]</step>
-<step order="5">Update state.json: reset cycle_count to 0, clear task_status</step>
-<step order="6">Update Progress line in tasks.md</step>
-<step order="7">Find next pending task (if any)</step>
-<step order="8">Report completion and next steps to user</step>
+<step order="1">Use TaskList to find the current in_progress task</step>
+<step order="2">Verify the task has been reviewed (review file exists)</step>
+<step order="3">Use TaskUpdate to mark task as completed and reset cycle_count</step>
+<step order="4">Find next pending task (if any)</step>
+<step order="5">Report completion and next steps to user</step>
 </workflow>
 
 <execution-steps>
 
-<step name="detect-session">
-Look for the active loom session:
-1. Check .claude/loom/threads/ for session directories
-2. Find the most recently modified session (by state.json timestamp)
-3. Read state.json to confirm we're in execution phase
+<step name="find-current-task">
+Use TaskList to find the task that's currently in_progress:
+```
+TaskList()
+```
+
+Look for a task with status: in_progress
 </step>
 
 <step name="validate-state">
 Verify approval is appropriate:
-- phase should be "execution"
-- task_status should be "awaiting_approval" (or recently reviewed task exists)
-- current_task_id should be set
+- A task is in_progress
+- A review file exists for this task
 
-If not in the right state, inform the user what state we're actually in.
+If no task is in progress, inform the user.
 </step>
 
-<step name="update-tasks-md">
-In tasks.md:
-1. Find the current task by its ID (from state.json current_task_id)
-2. Change its checkbox from [~] (in-progress) to [x] (complete)
-3. Update the Progress line: **Progress:** N/M tasks complete
-4. Update the Last Updated timestamp
-</step>
-
-<step name="update-state">
-Update state.json using the update-state.sh script:
-```bash
-./hooks/scripts/update-state.sh "$SESSION_DIR" \
-  "cycle_count=0" \
-  "task_status=null" \
-  "current_task_id=null"
+<step name="update-task">
+Use TaskUpdate to mark the task as completed:
+```
+TaskUpdate(
+  taskId="{task_id}",
+  status="completed",
+  metadata={"cycle_count": 0}
+)
 ```
 </step>
 
 <step name="find-next-task">
-Read tasks.md to find the next pending task:
-- Look for checkboxes with [ ] (pending status)
-- Skip any [!] (blocked) tasks
-- If found, report the next task ID and description
-- If no more tasks, announce completion of all tasks
+Use TaskList again to find the next pending task:
+- Look for tasks with status: pending
+- Check blockedBy is empty (no unfinished dependencies)
+- If found, report the next task
+- If no more tasks, announce completion
 </step>
 
 <step name="report">
 Output to user:
-- Confirmation that task {ID} was approved and marked complete
-- Updated progress (N/M tasks complete)
+- Confirmation that task was approved and marked complete
+- Updated progress count
 - Next task info OR completion announcement
 </step>
 
@@ -85,13 +76,13 @@ Output to user:
 
 <output-format>
 ```
-Task {TASK-ID} approved and marked complete.
+Task "{task subject}" approved and marked complete.
 
-Progress: {N}/{M} tasks complete
+Progress: {complete}/{total} tasks complete
 
 {IF more tasks:}
-Next task: {NEXT-TASK-ID}
-Description: {task description}
+Next task: {next task subject}
+Delivers: {delivers_ac}
 
 Ready to delegate to loom:implementer when you're ready.
 
@@ -102,14 +93,11 @@ Delegate to loom:code-reviewer for final verification against context.md.
 </output-format>
 
 <error-handling>
-<error condition="no-active-session">
-No active loom session found. Start a session by mentioning a ticket ID.
+<error condition="no-task-in-progress">
+No task is currently in progress. Use /loom-status to check current state.
 </error>
-<error condition="not-in-execution">
-Cannot approve - not in execution phase. Current phase: {phase}
-</error>
-<error condition="no-task-awaiting-approval">
-No task is currently awaiting approval. Current task_status: {status}
+<error condition="task-not-reviewed">
+This task hasn't been reviewed yet. Delegate to loom:code-reviewer first.
 </error>
 </error-handling>
 

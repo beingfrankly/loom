@@ -17,14 +17,15 @@ Loom is a **Claude Code multi-agent orchestration plugin** that coordinates spec
 | Workflow documentation | `loom/WORKFLOW.md` |
 | Installation guide | `loom/README.md` |
 
-## Architecture: Skills-First
+## Architecture: Skills-First + Native Tasks
 
 Loom uses **skills and native Claude Code tools** instead of MCP servers:
 
 - **No external dependencies** - No npm packages required
 - **Native tools** - Agents use Read, Write, Edit, Glob, Grep, Task, Skill
 - **Template skills** - Provide exact artifact formats
-- **Hook guardrails** - XML-structured prompts enforce workflow rules
+- **Native task system** - TaskCreate, TaskList, TaskGet, TaskUpdate for task management
+- **Hook guardrails** - Command hooks enforce workflow rules
 
 ## Project Structure
 
@@ -45,14 +46,17 @@ lachesis/
     │   ├── loom-workflow/SKILL.md                # Master workflow
     │   ├── context-template/SKILL.md             # context.md template
     │   ├── plan-template/SKILL.md                # implementation-plan.md template
-    │   ├── tasks-template/SKILL.md               # tasks.md template
     │   ├── review-template/SKILL.md              # review files template
-    │   └── research-template/SKILL.md            # research.md template
+    │   ├── research-template/SKILL.md            # research.md template
+    │   ├── loom-status/SKILL.md                  # Status display command
+    │   ├── loom-approve/SKILL.md                 # Task approval command
+    │   ├── loom-reject/SKILL.md                  # Task rejection command
+    │   └── loom-skip/SKILL.md                    # Task skip command
     └── hooks/                                    # Hook guardrails
-        ├── hooks.json                            # XML-structured prompts
+        ├── hooks.json                            # Hook definitions
         └── scripts/                              # Command hooks
-            ├── validate-write.sh                 # File precondition checks
-            └── validate-task.sh                  # Subagent type validation
+            └── pre-tool-use/
+                └── validate-write.js             # File precondition checks
 ```
 
 ## The Five Agents
@@ -62,7 +66,7 @@ See `loom/agents/` for full definitions. Each agent has specific responsibilitie
 | Agent | Model | Role | Key Constraint |
 |-------|-------|------|----------------|
 | **Lachesis** | Opus | Coordinates workflow, defines context | **Never implements directly** |
-| **Planner** | Sonnet | Creates implementation plans | Maps every AC to tasks |
+| **Planner** | Sonnet | Creates implementation plans and native tasks | Maps every AC to tasks |
 | **Code Reviewer** | Sonnet | Reviews plans and implementations | Assumes something is wrong |
 | **Implementer** | Sonnet | Executes individual tasks | One task at a time |
 | **Explorer** | Haiku | Fast codebase reconnaissance | Speed over depth |
@@ -75,9 +79,36 @@ Skills provide templates and enforce structure. Before writing any artifact, age
 |----------|---------------|
 | `context.md` | `context-template` |
 | `implementation-plan.md` | `plan-template` |
-| `tasks.md` | `tasks-template` |
 | `review-*.md` | `review-template` |
 | `research.md` | `research-template` |
+
+**Note:** Tasks are managed using Claude Code's native task system (TaskCreate, TaskList, TaskGet, TaskUpdate) instead of a tasks.md file.
+
+## Native Task Management
+
+Loom uses Claude Code's native task system for all task tracking:
+
+| Tool | Purpose |
+|------|---------|
+| `TaskCreate` | Planner creates tasks with metadata |
+| `TaskList` | List all tasks with status |
+| `TaskGet` | Get full task details |
+| `TaskUpdate` | Update status and metadata |
+
+### Task Metadata Schema
+
+```json
+{
+  "loom_task_id": "TASK-001",
+  "ticket_id": "II-5092",
+  "delivers_ac": ["AC1", "AC2"],
+  "agent": "implementer",
+  "files": ["src/feature.ts"],
+  "group": "Phase 1: Setup",
+  "cycle_count": 0,
+  "max_cycles": 3
+}
+```
 
 ## Workflow Phases
 
@@ -85,12 +116,21 @@ See `loom/WORKFLOW.md` for complete documentation with diagrams.
 
 ```
 1. CONTEXT DEFINITION → context.md
-2. PLANNING           → implementation-plan.md, tasks.md
+2. PLANNING           → implementation-plan.md, native tasks via TaskCreate
 3. REVIEW             → review-implementation.md (APPROVED/NEEDS_REVISION/REJECTED)
 4. EXECUTION          → Code changes, review-task-NNN.md (MANDATORY per task)
                         Max 3 implementer↔code-reviewer cycles, then human escalation
-5. COMPLETION         → Final review, tasks.md session log updated
+5. COMPLETION         → Final review
 ```
+
+## Human Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/loom-status` | Display current state, task progress |
+| `/loom-approve` | Approve task, mark complete, move to next |
+| `/loom-reject "feedback"` | Reject with feedback, increment cycle |
+| `/loom-skip "reason"` | Skip blocked task, move to next |
 
 ## Development Guidelines
 
@@ -103,13 +143,9 @@ Agent files use YAML frontmatter followed by Markdown with XML structure:
 name: agent-name
 description: Role description shown in UI
 model: opus|sonnet|haiku
-color: purple|blue|orange|green|cyan
-tools:
-  - Read
-  - Write
-  - Edit
+disallowedTools:
+  - Bash
   - Task
-  - Skill
 ---
 ```
 
@@ -144,33 +180,30 @@ Hooks defined in `loom/hooks/hooks.json`:
 ```json
 {
   "hooks": {
-    "SessionStart": [{ "type": "prompt", "prompt": "<xml-structured-rules>..." }],
+    "SessionStart": [],
     "PreToolUse": [
-      { "matcher": "Write", "hooks": [{ "type": "prompt", "prompt": "..." }] }
+      { "matcher": "Write", "hooks": [{ "type": "command", "command": "..." }] },
+      { "matcher": "Task", "hooks": [{ "type": "prompt", "prompt": "..." }] }
     ],
-    "Stop": [{ "type": "prompt", "prompt": "..." }]
+    "PostToolUse": [],
+    "Stop": [{ "hooks": [{ "type": "prompt", "prompt": "..." }] }]
   }
 }
 ```
 
 **Available hooks:**
 - `SessionStart` - Load workflow rules at session start
-- `PreToolUse` - Inject guardrails before specific tools (Write, Edit, Task)
+- `PreToolUse` - Inject guardrails before specific tools (Write, Task)
+- `PostToolUse` - Handle post-tool actions
 - `Stop` - Session cleanup
 
-**Enforcement Model:** Hooks use `type: "prompt"` for advisory enforcement - the AI is guided but not programmatically blocked. This collaborative model works well when the AI is a trusted participant.
+**Enforcement Model:** Write uses `type: "command"` for hard enforcement via validate-write.js. Task uses `type: "prompt"` for advisory guidance.
 
 ### Session Artifact Formats
 
 All artifacts are Markdown files in `.claude/loom/threads/{ticket-id}/`.
 
-**Checkbox syntax for tasks.md:**
-| Checkbox | Status |
-|----------|--------|
-| `[ ]` | Pending |
-| `[~]` | In Progress |
-| `[x]` | Complete |
-| `[!]` | Blocked |
+Tasks are managed via native task system with metadata for loom-specific fields.
 
 ## Testing the Plugin
 
@@ -208,7 +241,7 @@ zip -r loom.zip loom
 
 1. **Skills-First** - Template skills enforce artifact structure
 2. **Native Tools** - No MCP dependencies, uses Claude Code built-ins
-3. **XML Guardrails** - Hooks inject structured rules via XML tags
+3. **Native Tasks** - Uses TaskCreate/TaskList/TaskUpdate for task management
 4. **Lachesis Decides WHAT and WHO** - Coordination only, never implementation
 5. **Context Anchors Everything** - All decisions trace to context.md
 6. **Every AC Needs a Task** - Golden rule: no orphan acceptance criteria
@@ -241,8 +274,8 @@ zip -r loom.zip loom
 ### Modifying Hook Guardrails
 
 Edit `loom/hooks/hooks.json`:
-- Use XML tags for structured prompts
-- Add `PreToolUse` matchers for specific tool guardrails
+- Use command hooks for hard enforcement
+- Use prompt hooks for advisory guidance
 - Keep prompts focused on rules and checklists
 
 ## Troubleshooting
@@ -256,6 +289,6 @@ Edit `loom/hooks/hooks.json`:
 
 ## Version Information
 
-- **Plugin Version**: 0.5.10
+- **Plugin Version**: 0.5.14
 - **License**: MIT
 - **Author**: Frank van Eldijk

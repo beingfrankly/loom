@@ -1,6 +1,6 @@
 ---
 name: loom-skip
-description: Skip a blocked task and move to the next one. Marks task as blocked [!] and records reason.
+description: Skip a blocked task and move to the next one. Marks task as blocked and records reason.
 user-invocable: true
 ---
 
@@ -32,23 +32,20 @@ The reason argument is optional but recommended for audit trail.
 </when-to-use>
 
 <workflow>
-<step order="1">Detect the active loom session</step>
-<step order="2">Read state.json to get current task info</step>
-<step order="3">Verify we're in execution phase with an active task</step>
-<step order="4">Update tasks.md: change task checkbox to [!] (blocked)</step>
-<step order="5">Add skip reason to Blocked Tasks section in tasks.md</step>
-<step order="6">Update state.json: clear current task, reset cycle_count</step>
-<step order="7">Find next pending task</step>
-<step order="8">Report skip and next steps</step>
+<step order="1">Use TaskList to find the current in_progress task</step>
+<step order="2">Parse skip reason from user command</step>
+<step order="3">Use TaskUpdate to mark task as blocked with reason in metadata</step>
+<step order="4">Find next pending task</step>
+<step order="5">Report skip and next steps</step>
 </workflow>
 
 <execution-steps>
 
-<step name="detect-session">
-Look for the active loom session:
-1. Check .claude/loom/threads/ for session directories
-2. Find the most recently modified session (by state.json timestamp)
-3. Read state.json to confirm we're in execution phase
+<step name="find-current-task">
+Use TaskList to find the task that's currently in_progress:
+```
+TaskList()
+```
 </step>
 
 <step name="parse-reason">
@@ -59,53 +56,35 @@ Extract skip reason from the user's command:
 
 <step name="validate-state">
 Verify skip is appropriate:
-- phase should be "execution"
-- current_task_id should be set (there's a task to skip)
+- A task is in_progress (there's a task to skip)
 
 If no active task, inform the user.
 </step>
 
-<step name="update-tasks-md">
-In tasks.md:
-1. Find the current task by its ID
-2. Change its checkbox from [~] or [ ] to [!] (blocked)
-3. Add entry to the Blocked Tasks section:
-
-```markdown
-## Blocked Tasks
-
-| Task | Blocked Date | Reason |
-|------|--------------|--------|
-| {TASK-ID} | {YYYY-MM-DD} | {reason} |
+<step name="update-task">
+Use TaskUpdate to mark task as blocked:
+```
+TaskUpdate(
+  taskId="{task_id}",
+  metadata={
+    "blocked": true,
+    "blocked_reason": "{reason}",
+    "blocked_at": "{ISO timestamp}",
+    "cycle_count": 0
+  }
+)
 ```
 
-4. Update Last Updated timestamp
-5. Note: Do NOT update Progress count (blocked tasks don't count as complete)
-</step>
-
-<step name="update-state">
-Update state.json:
-```bash
-./hooks/scripts/update-state.sh "$SESSION_DIR" \
-  "cycle_count=0" \
-  "task_status=null" \
-  "current_task_id=null"
-```
+Note: We don't change status to "completed" - we leave it as is but mark blocked in metadata.
+The task can be revisited later if needed.
 </step>
 
 <step name="find-next-task">
-Read tasks.md to find the next pending task:
-- Look for checkboxes with [ ] (pending status)
-- Skip any [!] (blocked) tasks
-- If found, report the next task ID and description
-- If no more pending tasks, check if all tasks are either [x] or [!]
-</step>
-
-<step name="record-session-log">
-Add entry to Session Log:
-```markdown
-| {ISO timestamp} | Task Skipped | {TASK-ID}: {reason} |
-```
+Use TaskList to find the next pending task:
+- Look for tasks with status: pending
+- Check blockedBy is empty (no unfinished dependencies)
+- If found, report the next task
+- If no more pending tasks, check what remains
 </step>
 
 <step name="report">
@@ -116,14 +95,14 @@ Output to user with status and next steps.
 
 <output-format-has-next>
 ```
-Task {TASK-ID} skipped and marked as blocked.
+Task "{task subject}" skipped and marked as blocked.
 
 Reason: "{reason}"
 
-Progress: {N}/{M} tasks complete ({B} blocked)
+Progress: {complete}/{total} tasks complete ({blocked} blocked)
 
-Next task: {NEXT-TASK-ID}
-Description: {task description}
+Next task: {next task subject}
+Delivers: {delivers_ac}
 
 Ready to delegate to loom:implementer when you're ready.
 ```
@@ -131,19 +110,16 @@ Ready to delegate to loom:implementer when you're ready.
 
 <output-format-no-more-tasks>
 ```
-Task {TASK-ID} skipped and marked as blocked.
+Task "{task subject}" skipped and marked as blocked.
 
 Reason: "{reason}"
 
-Progress: {N}/{M} tasks complete ({B} blocked)
+Progress: {complete}/{total} tasks complete ({blocked} blocked)
 
 No more pending tasks.
 
 {IF all complete or blocked:}
-All processable tasks complete. {B} task(s) remain blocked.
-
-Blocked tasks:
-- {TASK-ID}: {reason}
+All processable tasks complete. {blocked} task(s) remain blocked.
 
 Options:
 1. Proceed to final review (delegate to loom:code-reviewer)
@@ -152,31 +128,9 @@ Options:
 ```
 </output-format-no-more-tasks>
 
-<blocked-tasks-section>
-If the Blocked Tasks section doesn't exist in tasks.md, create it:
-
-```markdown
----
-
-## Blocked Tasks
-
-| Task | Blocked Date | Reason |
-|------|--------------|--------|
-| {TASK-ID} | {YYYY-MM-DD} | {reason} |
-```
-
-Place this section after the main task list and before the Session Log.
-</blocked-tasks-section>
-
 <error-handling>
-<error condition="no-active-session">
-No active loom session found. Start a session by mentioning a ticket ID.
-</error>
-<error condition="not-in-execution">
-Cannot skip - not in execution phase. Current phase: {phase}
-</error>
-<error condition="no-active-task">
-No task is currently active to skip. Use this command during task execution.
+<error condition="no-task-in-progress">
+No task is currently in progress to skip. Use /loom-status to check current state.
 </error>
 </error-handling>
 

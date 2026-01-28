@@ -19,8 +19,8 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <delegates-to>planner, code-reviewer, implementer, explorer</delegates-to>
 </agent>
 <agent name="planner" model="sonnet" color="blue">
-<role>Architect - creates implementation plans and task breakdowns</role>
-<creates>implementation-plan.md, tasks.md</creates>
+<role>Architect - creates implementation plans and native tasks</role>
+<creates>implementation-plan.md, native tasks via TaskCreate</creates>
 </agent>
 <agent name="code-reviewer" model="sonnet" color="orange">
 <role>Reviewer - validates plans and implementations against context</role>
@@ -39,11 +39,11 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <golden-rules priority="critical">
 <rule id="1">NEVER write an artifact without first invoking its template skill</rule>
 <rule id="2">NEVER create implementation-plan.md unless context.md exists</rule>
-<rule id="3">NEVER create tasks.md unless implementation-plan.md exists</rule>
-<rule id="4">NEVER execute tasks unless review-implementation.md shows APPROVED</rule>
-<rule id="5">Lachesis NEVER implements code directly - always delegate to implementer</rule>
-<rule id="6">Every acceptance criterion must map to at least one task</rule>
-<rule id="7">AUTO-PROCEED on APPROVED verdicts - no confirmation needed for happy path</rule>
+<rule id="3">NEVER execute tasks unless review-implementation.md shows APPROVED</rule>
+<rule id="4">Lachesis NEVER implements code directly - always delegate to implementer</rule>
+<rule id="5">Every acceptance criterion must map to at least one task</rule>
+<rule id="6">AUTO-PROCEED on APPROVED verdicts - no confirmation needed for happy path</rule>
+<rule id="7">Use native tasks (TaskCreate/TaskList/TaskUpdate) for all task management</rule>
 </golden-rules>
 
 <workflow-phases>
@@ -82,21 +82,21 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <step order="3">Planner reads context.md to understand requirements</step>
 <step order="4">Planner optionally delegates to explorer for codebase reconnaissance</step>
 <step order="5">Planner writes implementation-plan.md</step>
-<step order="6">Planner invokes tasks-template skill</step>
-<step order="7">Planner writes tasks.md with atomic task breakdown</step>
+<step order="6">Planner creates native tasks using TaskCreate for each task</step>
+<step order="7">Planner sets task dependencies using TaskUpdate</step>
 </steps>
 
-<output>implementation-plan.md, tasks.md</output>
+<output>implementation-plan.md, native tasks</output>
 <next-phase>Phase 3: Review</next-phase>
 </phase>
 
 <phase id="3" name="Review">
 <owner>code-reviewer (delegated by lachesis)</owner>
-<trigger>implementation-plan.md and tasks.md complete</trigger>
+<trigger>implementation-plan.md and tasks created</trigger>
 <preconditions>
 <file must-exist="true">context.md</file>
 <file must-exist="true">implementation-plan.md</file>
-<file must-exist="true">tasks.md</file>
+<condition>Native tasks exist (TaskList returns tasks)</condition>
 </preconditions>
 <automatic-progression>true</automatic-progression>
 <background-mode>true</background-mode>
@@ -107,7 +107,7 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <step order="3">Code Reviewer invokes review-template skill</step>
 <step order="4">Code Reviewer reads context.md (the source of truth)</step>
 <step order="5">Code Reviewer validates plan against acceptance criteria</step>
-<step order="6">Code Reviewer checks every AC has at least one task</step>
+<step order="6">Code Reviewer uses TaskList/TaskGet to verify every AC has at least one task</step>
 <step order="7">Code Reviewer writes review-implementation.md with verdict</step>
 <step order="8">When complete, Lachesis reads output file and handles verdict</step>
 </steps>
@@ -125,39 +125,37 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <trigger>review-implementation.md shows APPROVED</trigger>
 <preconditions>
 <file must-exist="true">context.md</file>
-<file must-exist="true">tasks.md</file>
 <file contains="APPROVED">review-implementation.md</file>
+<condition>Native tasks exist</condition>
 </preconditions>
 
 <execution-loop>
-<step order="1">Read tasks.md to find next pending task [ ]</step>
-<step order="2">Update task checkbox to in-progress [~]</step>
-<step order="3">Initialize cycle counter: cycle = 1</step>
+<step order="1">Use TaskList to find next pending task</step>
+<step order="2">Use TaskUpdate to mark task as in_progress</step>
+<step order="3">Set cycle_count to 1 in task metadata</step>
 <step order="4">Lachesis delegates task to implementer agent</step>
 <step order="5">MANDATORY: Lachesis delegates to code-reviewer for task review</step>
 <step order="6">Handle review verdict:
   - APPROVED -> Automatically mark task complete and proceed to next task
   - NEEDS_REVISION -> Go to step 7</step>
-<step order="7">Check cycle count:
-  - If cycle < 3: increment cycle, delegate back to implementer with feedback, go to step 5
+<step order="7">Check cycle count in metadata:
+  - If cycle < 3: increment cycle_count, delegate back to implementer with feedback, go to step 5
   - If cycle >= 3: STOP - escalate to human</step>
 <step order="8">Human resolves the issue, then continue from step 4 or skip task</step>
-<step order="9">Update task checkbox to complete [x]</step>
-<step order="10">Update Progress line and Session Log in tasks.md</step>
-<step order="11">Repeat from step 1 until all tasks complete</step>
+<step order="9">Use TaskUpdate to mark task as completed</step>
+<step order="10">Repeat from step 1 until all tasks complete</step>
 </execution-loop>
 
 <cycle-limit>
 After 3 implementer-code-reviewer cycles without APPROVED, the task is stuck.
 This prevents endless "gold-plating" loops. Human must decide:
-- Accept current implementation as "good enough"
-- Provide specific guidance to break the deadlock
-- Simplify or split the task
-- Skip the task and note it as blocked
+- Accept current implementation as "good enough" (/loom-approve)
+- Provide specific guidance to break the deadlock (/loom-reject "guidance")
+- Skip the task and note it as blocked (/loom-skip "reason")
 </cycle-limit>
 
 <output>Code changes, review-task-*.md (mandatory)</output>
-<exit-condition>All tasks marked [x] complete</exit-condition>
+<exit-condition>All tasks marked completed</exit-condition>
 <next-phase>Phase 5: Completion</next-phase>
 </phase>
 
@@ -165,18 +163,17 @@ This prevents endless "gold-plating" loops. Human must decide:
 <owner>lachesis + code-reviewer</owner>
 <trigger>All tasks complete</trigger>
 <preconditions>
-<condition>All tasks in tasks.md marked [x]</condition>
+<condition>All tasks have status: completed (via TaskList)</condition>
 </preconditions>
 
 <steps>
 <step order="1">Lachesis delegates final review to code-reviewer</step>
 <step order="2">Code Reviewer verifies all acceptance criteria from context.md are met</step>
-<step order="3">Code Reviewer writes final review or updates review-implementation.md</step>
-<step order="4">Lachesis updates tasks.md Session Log with completion summary</step>
-<step order="5">Report summary to human</step>
+<step order="3">Code Reviewer writes final review</step>
+<step order="4">Report summary to human</step>
 </steps>
 
-<output>Updated tasks.md Session Log, final summary</output>
+<output>Final review, completion summary</output>
 </phase>
 
 </workflow-phases>
@@ -217,156 +214,74 @@ When code-reviewer returns NEEDS_REVISION or REJECTED:
 <directory-structure>
 .claude/loom/threads/
   {ticket-id}/
-    state.json               # Workflow state tracking
     context.md
     review-context.md        # Context review
     implementation-plan.md
-    review-plan.md           # Plan review
-    tasks.md                 # includes Session Log
-    review-tasks.md          # Tasks review
+    review-implementation.md # Plan review
     review-task-001.md       # Individual task reviews
     review-task-002.md
 </directory-structure>
+
+<native-tasks>
+Tasks are managed using Claude Code's native task system:
+- TaskCreate: Create new tasks with metadata
+- TaskList: List all tasks with status
+- TaskGet: Get full task details
+- TaskUpdate: Update status and metadata
+</native-tasks>
 </session-management>
 
-<state-management>
-
-<overview>
-Loom tracks workflow state in state.json to enforce review-gated phase progression.
-State is automatically updated by hooks after agent delegations complete.
-Human commands provide intervention points for approval, rejection, and skipping.
-</overview>
-
-<state-file>
-state.json is created automatically when context.md is first written.
+<task-metadata-schema>
+Every task includes this metadata:
 
 ```json
 {
-  "ticket": "PROJ-123",
-  "phase": "context | planning | execution | complete",
-  "context_reviewed": false,
-  "plan_reviewed": false,
-  "tasks_reviewed": false,
-  "current_task_id": null,
-  "task_status": null,
+  "loom_task_id": "TASK-001",
+  "ticket_id": "PROJ-123",
+  "delivers_ac": ["AC1", "AC2"],
+  "agent": "implementer",
+  "files": ["src/feature.ts"],
+  "group": "Phase 1: Setup",
   "cycle_count": 0,
-  "started_at": "2024-01-15T10:00:00Z",
-  "last_updated": "2024-01-15T12:30:00Z"
+  "max_cycles": 3
 }
 ```
 
-<field name="phase">Current workflow phase</field>
-<field name="context_reviewed">Whether context.md has been reviewed and APPROVED</field>
-<field name="plan_reviewed">Whether implementation-plan.md has been reviewed and APPROVED</field>
-<field name="tasks_reviewed">Whether tasks.md has been reviewed and APPROVED</field>
-<field name="current_task_id">ID of task currently being worked</field>
-<field name="task_status">Status within execution: null | implementing | awaiting_review | addressing_feedback | awaiting_approval | blocked</field>
-<field name="cycle_count">Number of revision cycles for current task (max 3)</field>
-</state-file>
-
-<state-transitions>
-
-<transition from="context" to="planning">
-Trigger: review-context.md created with APPROVED verdict
-Auto-updated by: PostToolUse hook after code-reviewer completes
-</transition>
-
-<transition from="planning" to="execution">
-Trigger: review-tasks.md created with APPROVED verdict
-Auto-updated by: PostToolUse hook after code-reviewer completes
-Auto-proceeds: Yes - no user confirmation needed
-</transition>
-
-<transition task_status="null -> implementing">
-Trigger: Delegate to loom:implementer
-Auto-updated by: PostToolUse hook after delegation
-</transition>
-
-<transition task_status="implementing -> awaiting_review">
-Trigger: Implementer completes
-Auto-updated by: PostToolUse hook
-</transition>
-
-<transition task_status="awaiting_review -> awaiting_approval">
-Trigger: Code-reviewer returns APPROVED
-Auto-updated by: PostToolUse hook
-</transition>
-
-<transition task_status="awaiting_review -> addressing_feedback">
-Trigger: Code-reviewer returns NEEDS_REVISION
-Auto-updated by: PostToolUse hook (also increments cycle_count)
-</transition>
-
-<transition task_status="awaiting_approval -> null (next task)">
-Trigger: Human uses /loom-approve
-Manual action required
-</transition>
-
-<transition task_status="* -> addressing_feedback">
-Trigger: Human uses /loom-reject
-Manual action required (also increments cycle_count)
-</transition>
-
-<transition task_status="* -> blocked">
-Trigger: cycle_count reaches 3, or human uses /loom-skip
-</transition>
-
-</state-transitions>
-
-<review-gates>
-Hooks enforce that each phase transition requires review approval:
-
-<gate artifact="implementation-plan.md">
-Blocked until: review-context.md exists with APPROVED verdict
-Enforced by: validate-write.sh PreToolUse hook
-</gate>
-
-<gate artifact="tasks.md">
-Blocked until: review-plan.md exists with APPROVED verdict
-Enforced by: validate-write.sh PreToolUse hook
-</gate>
-
-<gate artifact="delegation to implementer">
-Blocked until: review-tasks.md exists with APPROVED verdict
-Enforced by: validate-task.sh PreToolUse hook
-</gate>
-
-<gate artifact="next task after code review">
-Blocked until: Human approves via /loom-approve
-Enforced by: state.json task_status check
-</gate>
-</review-gates>
-
-</state-management>
+<field name="loom_task_id">Unique task identifier</field>
+<field name="ticket_id">Parent ticket ID</field>
+<field name="delivers_ac">Which acceptance criteria this task delivers</field>
+<field name="agent">Which agent executes (implementer, explorer)</field>
+<field name="files">Files to be modified</field>
+<field name="group">Task group/phase name</field>
+<field name="cycle_count">Number of revision cycles (max 3)</field>
+<field name="max_cycles">Maximum cycles before escalation</field>
+</task-metadata-schema>
 
 <human-commands>
 
 <command name="/loom-status">
 Display current workflow state, progress, and suggested next action.
-Use to check where you are in the workflow.
+Uses TaskList to show task progress.
 </command>
 
 <command name="/loom-approve">
 Approve the current task after code review.
-- Marks task [x] complete
+- Uses TaskUpdate to mark task completed
 - Resets cycle_count to 0
-- Clears current_task_id
 - Reports next pending task
 </command>
 
 <command name="/loom-reject" args="feedback">
 Reject current task and request another revision.
-- Increments cycle_count
-- Sets task_status to addressing_feedback
-- Records feedback in Session Log
+- Increments cycle_count in metadata
+- Records feedback
 - If cycle_count >= 3, marks task as blocked
 </command>
 
 <command name="/loom-skip" args="reason">
 Skip a blocked task and move to the next one.
-- Marks task [!] blocked
-- Records reason in Blocked Tasks section
-- Resets cycle_count
+- Marks task as blocked in metadata
+- Records reason
 - Reports next pending task
 </command>
 
@@ -376,14 +291,14 @@ Skip a blocked task and move to the next one.
 <pattern name="delegate-to-planner">
 Task(
   subagent_type="loom:planner",
-  allowed_tools=["Read", "Write", "Skill", "Task"],
+  allowed_tools=["Read", "Write", "Skill", "Task", "TaskCreate", "TaskUpdate"],
   prompt="Ticket: {TICKET-ID}
 
 First invoke the plan-template skill, then read context.md at:
 .claude/loom/threads/{ticket-id}/context.md
 
 Create implementation-plan.md following the template.
-Then invoke tasks-template skill and create tasks.md."
+Then create native tasks using TaskCreate for each task in the plan."
 )
 
 Note: Planner may delegate to explorer for codebase reconnaissance.
@@ -393,13 +308,13 @@ Note: Planner may delegate to explorer for codebase reconnaissance.
 Task(
   subagent_type="loom:code-reviewer",
   run_in_background=true,
-  allowed_tools=["Read", "Write", "Skill", "Glob", "Grep"],
+  allowed_tools=["Read", "Write", "Skill", "Glob", "Grep", "TaskList", "TaskGet"],
   prompt="Ticket: {TICKET-ID}
 
 First invoke the review-template skill, then read:
 - context.md (source of truth)
 - implementation-plan.md (what to review)
-- tasks.md (verify AC coverage)
+- Use TaskList and TaskGet to verify AC coverage
 
 Write review-implementation.md with your verdict."
 )
@@ -407,30 +322,14 @@ Write review-implementation.md with your verdict."
 Note: Use run_in_background=true for plan reviews. Read output_file when complete.
 </pattern>
 
-<pattern name="delegate-to-code-reviewer">
-Task(
-  subagent_type="loom:code-reviewer",
-  allowed_tools=["Read", "Write", "Skill", "Glob", "Grep"],
-  prompt="Ticket: {TICKET-ID}
-
-First invoke the review-template skill, then read:
-- context.md (source of truth)
-- implementation-plan.md (what to review)
-- tasks.md (verify AC coverage)
-
-Write review-implementation.md with your verdict."
-)
-</pattern>
-
 <pattern name="delegate-to-implementer">
 Task(
   subagent_type="loom:implementer",
-  allowed_tools=["Read", "Write", "Edit"],
+  allowed_tools=["Read", "Write", "Edit", "TaskGet"],
   prompt="Ticket: {TICKET-ID}
-Task: {TASK-ID}
+Task ID: {native_task_id}
 
-Read the task details from:
-.claude/loom/threads/{ticket-id}/tasks.md
+Use TaskGet to read the task details.
 
 Execute ONLY this single task. Do not work on other tasks.
 If you need to search the codebase, request that lachesis delegate to explorer."

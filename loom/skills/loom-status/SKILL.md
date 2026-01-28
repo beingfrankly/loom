@@ -10,14 +10,14 @@ user-invocable: true
 
 <purpose>
 Human command to display the current state of the loom workflow.
-Provides a quick overview of where we are in the process without needing to read multiple files.
+Provides a quick overview of where we are in the process using native task system.
 </purpose>
 
 <usage>
 ```
 /loom-status
 ```
-No arguments needed. Displays status of the most recent active session.
+No arguments needed. Displays status of the active session and native tasks.
 </usage>
 
 <when-to-use>
@@ -28,9 +28,9 @@ No arguments needed. Displays status of the most recent active session.
 </when-to-use>
 
 <workflow>
-<step order="1">Find active loom sessions</step>
-<step order="2">Read state.json from most recent session</step>
-<step order="3">Read tasks.md to get progress counts</step>
+<step order="1">Find active loom sessions in .claude/loom/threads/</step>
+<step order="2">Use TaskList to get all native tasks and their status</step>
+<step order="3">Check which artifacts exist in session directory</step>
 <step order="4">Format and display comprehensive status</step>
 <step order="5">Suggest next action based on current state</step>
 </workflow>
@@ -41,41 +41,32 @@ No arguments needed. Displays status of the most recent active session.
 Look for loom sessions:
 1. Check .claude/loom/threads/ directory
 2. List all session directories
-3. Find the most recently modified (by state.json last_updated)
+3. Find the most recently modified (by context.md modification time)
 4. If no sessions found, report that and suggest starting one
 </step>
 
-<step name="read-state">
-From state.json, extract:
-- ticket: The ticket ID
-- phase: context | planning | execution | complete
-- context_reviewed: boolean
-- plan_reviewed: boolean
-- tasks_reviewed: boolean
-- current_task_id: current task being worked (or null)
-- task_status: null | implementing | awaiting_review | addressing_feedback | awaiting_approval | blocked
-- cycle_count: number of revision cycles for current task
-- started_at: session start timestamp
-- last_updated: last activity timestamp
-</step>
+<step name="get-tasks">
+Use TaskList to get all tasks:
+```
+TaskList()
+```
 
-<step name="read-tasks">
-From tasks.md, count:
-- Total tasks (lines matching checkbox pattern)
-- Pending tasks [ ]
-- In-progress tasks [~]
-- Complete tasks [x]
-- Blocked tasks [!]
+Count tasks by status:
+- pending: Tasks not yet started
+- in_progress: Tasks currently being worked on
+- completed: Tasks finished successfully
+
+Also check metadata for loom-specific info:
+- cycle_count: Current revision cycles
+- blocked: Whether task is blocked
 </step>
 
 <step name="check-artifacts">
-Check which artifacts exist:
+Check which artifacts exist in session directory:
 - context.md
 - review-context.md (and its verdict)
 - implementation-plan.md
-- review-plan.md (and its verdict)
-- tasks.md
-- review-tasks.md (and its verdict)
+- review-implementation.md (and its verdict)
 - review-task-*.md files
 </step>
 
@@ -95,9 +86,7 @@ Based on current state, suggest the appropriate next action.
 LOOM STATUS: {TICKET-ID}
 ================================================================================
 
-Phase: {PHASE}
-Started: {started_at}
-Last Activity: {last_updated}
+Session: .claude/loom/threads/{ticket-id}/
 
 --------------------------------------------------------------------------------
 ARTIFACTS
@@ -105,19 +94,17 @@ ARTIFACTS
 [{x or space}] context.md
 [{x or space}] review-context.md          {verdict if exists}
 [{x or space}] implementation-plan.md
-[{x or space}] review-plan.md             {verdict if exists}
-[{x or space}] tasks.md
-[{x or space}] review-tasks.md            {verdict if exists}
+[{x or space}] review-implementation.md             {verdict if exists}
 
 --------------------------------------------------------------------------------
-PROGRESS
+TASKS (Native)
 --------------------------------------------------------------------------------
-Tasks: {complete}/{total} complete ({pending} pending, {blocked} blocked)
+Total: {total} | Pending: {pending} | In Progress: {in_progress} | Complete: {complete}
 
-{IF in execution phase with current task:}
-Current Task: {current_task_id}
-Task Status: {task_status}
-Revision Cycle: {cycle_count}/3
+{IF in execution with current task:}
+Current Task: {task subject}
+  - Delivers: {delivers_ac from metadata}
+  - Cycle: {cycle_count}/{max_cycles}
 
 --------------------------------------------------------------------------------
 NEXT STEP
@@ -130,61 +117,47 @@ NEXT STEP
 
 <next-step-suggestions>
 
-<suggestion phase="context" condition="no context.md">
+<suggestion condition="no context.md">
 Create context.md by collaborating with the user on requirements.
 Invoke the context-template skill first.
 </suggestion>
 
-<suggestion phase="context" condition="context.md exists, no review">
+<suggestion condition="context.md exists, no review">
 Delegate to loom:code-reviewer to review context.md
 </suggestion>
 
-<suggestion phase="context" condition="review exists, not approved">
+<suggestion condition="review exists, not approved">
 Address feedback in review-context.md, then request re-review.
 </suggestion>
 
-<suggestion phase="planning" condition="no plan">
-Delegate to loom:planner to create implementation-plan.md and tasks.md
+<suggestion condition="no plan">
+Delegate to loom:planner to create implementation-plan.md and native tasks
 </suggestion>
 
-<suggestion phase="planning" condition="plan exists, no review">
+<suggestion condition="plan exists, no review">
 Delegate to loom:code-reviewer to review the implementation plan
 </suggestion>
 
-<suggestion phase="planning" condition="plan reviewed, tasks not reviewed">
-Delegate to loom:code-reviewer to review tasks.md
+<suggestion condition="no tasks in_progress, pending tasks exist">
+Use TaskList to find next pending task, delegate to loom:implementer
 </suggestion>
 
-<suggestion phase="execution" task_status="null">
-Read tasks.md, find next pending task, delegate to loom:implementer
-</suggestion>
-
-<suggestion phase="execution" task_status="implementing">
+<suggestion condition="task in_progress">
 Wait for implementer to complete, or check on progress
 </suggestion>
 
-<suggestion phase="execution" task_status="awaiting_review">
+<suggestion condition="task needs review">
 Delegate to loom:code-reviewer to review the task implementation
 </suggestion>
 
-<suggestion phase="execution" task_status="addressing_feedback">
-Delegate to loom:implementer with reviewer feedback
-</suggestion>
-
-<suggestion phase="execution" task_status="awaiting_approval">
-Human decision needed:
-- /loom-approve : Accept and move to next task
-- /loom-reject "feedback" : Request another revision
-</suggestion>
-
-<suggestion phase="execution" task_status="blocked">
+<suggestion condition="task cycle >= 3">
 Human intervention needed:
-- /loom-approve : Accept current state
+- /loom-approve : Accept current implementation
 - /loom-reject "guidance" : Provide specific guidance
 - /loom-skip "reason" : Skip and move to next task
 </suggestion>
 
-<suggestion phase="execution" condition="all tasks complete">
+<suggestion condition="all tasks complete">
 Delegate to loom:code-reviewer for final review against context.md
 </suggestion>
 
@@ -206,27 +179,5 @@ Session directory: .claude/loom/threads/{ticket-id}/
 ================================================================================
 ```
 </no-session-output>
-
-<multiple-sessions-output>
-If multiple sessions exist, list them with last activity:
-
-```
-================================================================================
-LOOM SESSIONS
-================================================================================
-
-Found {N} sessions:
-
-| Ticket | Phase | Progress | Last Activity |
-|--------|-------|----------|---------------|
-| {ID-1} | execution | 3/5 tasks | 2 hours ago |
-| {ID-2} | planning | - | 1 day ago |
-
-Showing status for most recent: {ID-1}
-
-{... full status for most recent ...}
-================================================================================
-```
-</multiple-sessions-output>
 
 </loom-status-system>

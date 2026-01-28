@@ -24,13 +24,6 @@ Execution Phase     →  The thread is woven (implementation)
 Completion Phase    →  Atropos accepts or cuts (final judgment)
 ```
 
-### Why This Metaphor?
-
-- **Thread = Feature/Task** - Each piece of work has a lifecycle
-- **Spinning = Creation** - Planning and implementation create the thread
-- **Measuring = Orchestration** - Lachesis ensures proper allocation
-- **Cutting = Quality Gates** - Code Reviewer decides what ships
-
 ## Installation
 
 ### Option 1: Local Plugin (Recommended for development)
@@ -81,16 +74,19 @@ Skills provide templates and workflow guidance. Agents invoke skills before writ
 | `loom-workflow` | Master workflow, agent roles, delegation patterns |
 | `context-template` | Template for context.md |
 | `plan-template` | Template for implementation-plan.md |
-| `tasks-template` | Template for tasks.md with checkbox syntax |
 | `review-template` | Template for review files with verdicts |
 | `research-template` | Template for research.md |
+| `loom-status` | Display current workflow state |
+| `loom-approve` | Approve task and move to next |
+| `loom-reject` | Reject task with feedback |
+| `loom-skip` | Skip blocked task |
 
 ### Agents (`agents/`)
 
 | Agent | Model | Role | Fate Mapping |
 |-------|-------|------|--------------|
 | `lachesis` | Opus | Coordinates, defines context, never implements | The Measurer |
-| `planner` | Sonnet | Creates plans and task breakdowns | Clotho (spinning) |
+| `planner` | Sonnet | Creates plans and native tasks | Clotho (spinning) |
 | `code-reviewer` | Sonnet | Reviews against context.md | Atropos (cutting) |
 | `implementer` | Sonnet | Executes tasks | Clotho (spinning) |
 | `explorer` | Haiku | Fast codebase search | Scout |
@@ -99,20 +95,18 @@ Skills provide templates and workflow guidance. Agents invoke skills before writ
 
 | Hook | Trigger | Purpose |
 |------|---------|---------|
-| `SessionStart` | Session begins | Load workflow rules, check for active sessions |
-| `PreToolUse` | Before Write/Edit/Task | Enforce skill invocation and preconditions |
-| `Stop` | Session ends | Remind to update session log |
+| `SessionStart` | Session begins | Load workflow rules |
+| `PreToolUse` | Before Write/Task | Enforce preconditions |
+| `Stop` | Session ends | Remind to check status |
 
-**Note:** Skills marked `user-invocable: true` can be invoked directly by users via `/skill-name` or the Skill tool. All Loom skills are user-invocable for flexibility.
+## Architecture: Skills-First + Native Tasks
 
-## Architecture: Skills-First
-
-Loom uses **skills instead of MCP tools**. This means:
+Loom uses **skills and native Claude Code tools**. This means:
 
 1. **No external dependencies** - No npm packages required
 2. **Native Claude Code tools** - Agents use Read, Write, Edit, Glob, Grep
 3. **Template skills** - Provide exact artifact formats
-4. **Hook guardrails** - Enforce workflow rules via XML-structured prompts
+4. **Native task system** - TaskCreate, TaskList, TaskGet, TaskUpdate for task management
 
 ### Skill → Artifact Mapping
 
@@ -122,25 +116,28 @@ Before writing any artifact, agents must invoke the corresponding skill:
 |----------|---------------|
 | `context.md` | `context-template` |
 | `implementation-plan.md` | `plan-template` |
-| `tasks.md` | `tasks-template` |
 | `review-*.md` | `review-template` |
 | `research.md` | `research-template` |
+
+### Native Task System
+
+Tasks are managed using Claude Code's native task tools instead of a tasks.md file:
+
+| Tool | Purpose |
+|------|---------|
+| `TaskCreate` | Create tasks with metadata |
+| `TaskList` | List all tasks with status |
+| `TaskGet` | Get full task details |
+| `TaskUpdate` | Update status and metadata |
 
 ### Preconditions
 
 | Artifact | Requires |
 |----------|----------|
 | `implementation-plan.md` | `context.md` must exist |
-| `tasks.md` | `context.md` and `implementation-plan.md` must exist |
 | `review-implementation.md` | `implementation-plan.md` must exist |
 | Task execution | `review-implementation.md` must show APPROVED |
 | `research.md` | `context.md` must exist |
-
-### Hook Enforcement Model
-
-Hooks use **advisory prompts** (`type: "prompt"`) that inject rules into the AI's context. This is a soft enforcement model - the AI is strongly guided to follow the rules but not programmatically blocked.
-
-For stronger enforcement, you could add `type: "command"` hooks with validation scripts, but the advisory model works well for collaborative workflows where the AI is a trusted participant.
 
 ## The Flow
 
@@ -175,12 +172,12 @@ Human: "I need to work on ii-5092" or "I want to research caching strategies"
 2. PLANNING
    -> Planner invokes plan-template skill
    -> Creates implementation-plan.md
-   -> Planner invokes tasks-template skill
-   -> Creates tasks.md
+   -> Creates native tasks via TaskCreate
 
 3. REVIEW
    -> Code Reviewer invokes review-template skill
    -> Validates plan against context.md
+   -> Uses TaskList to verify AC coverage
    -> Creates review-implementation.md
 
 4. REVISION (if needed)
@@ -188,12 +185,12 @@ Human: "I need to work on ii-5092" or "I want to research caching strategies"
 
 5. EXECUTION (with mandatory review, max 3 cycles)
    For each task:
-   -> Lachesis updates tasks.md [ ] → [~]
+   -> Lachesis uses TaskUpdate (status: in_progress)
    -> Implementer executes
    -> Code Reviewer reviews (MANDATORY)
    -> If NEEDS_REVISION & cycles < 3: back to implementer
    -> If NEEDS_REVISION & cycles >= 3: human escalation
-   -> If APPROVED: Lachesis updates tasks.md [~] → [x]
+   -> If APPROVED: TaskUpdate (status: completed)
 
 6. COMPLETION
    -> All acceptance criteria verified
@@ -204,27 +201,25 @@ Human: "I need to work on ii-5092" or "I want to research caching strategies"
 Sessions are identified by **ticket ID** (e.g., `ii-5092`):
 
 ```
-.loom/
-└── sessions/
-    └── ii-5092/
-        ├── context.md              # What, Why, AC
-        ├── research.md             # Research findings (Research mode)
-        ├── implementation-plan.md  # How (Ticket mode)
-        ├── tasks.md                # Work breakdown + status + session log
-        ├── review-implementation.md
-        └── review-task-001.md
+.claude/loom/threads/
+└── ii-5092/
+    ├── context.md              # What, Why, AC
+    ├── research.md             # Research findings (Research mode)
+    ├── implementation-plan.md  # How (Ticket mode)
+    ├── review-implementation.md
+    └── review-task-001.md
 ```
 
-## Task Status Checkboxes
+Tasks are managed via native task system (not in files).
 
-Agents update task status by editing checkboxes in tasks.md:
+## Human Commands
 
-| Checkbox | Status |
-|----------|--------|
-| `[ ]` | Pending |
-| `[~]` | In Progress |
-| `[x]` | Complete |
-| `[!]` | Blocked |
+| Command | Purpose |
+|---------|---------|
+| `/loom-status` | Display current state, task progress |
+| `/loom-approve` | Approve task, mark complete, move to next |
+| `/loom-reject "feedback"` | Reject with feedback, increment cycle |
+| `/loom-skip "reason"` | Skip blocked task, move to next |
 
 ## Usage Example
 
@@ -256,8 +251,7 @@ Planner:
 [Invokes plan-template skill]
 [Reads context.md]
 [Writes implementation-plan.md]
-[Invokes tasks-template skill]
-[Writes tasks.md]
+[Creates native tasks via TaskCreate]
 
 Lachesis: Delegating to code-reviewer for review...
 
@@ -266,14 +260,16 @@ Lachesis: Delegating to code-reviewer for review...
 Code Reviewer:
 [Invokes review-template skill]
 [Reviews plan against context.md]
+[Uses TaskList to verify AC coverage]
 [Writes review-implementation.md - APPROVED]
 
-Lachesis: Starting execution. 5 tasks in 3 groups.
+Lachesis: Starting execution. 5 tasks found.
 
 [For each task:
+  - Uses TaskUpdate to mark in_progress
   - Delegates to implementer
   - MANDATORY: Delegates to code-reviewer
-  - If approved: updates tasks.md
+  - If approved: TaskUpdate to mark completed
   - If needs revision: max 3 cycles, then human escalation]
 
 ii-5092 complete. All acceptance criteria delivered.
@@ -306,12 +302,15 @@ loom/
 │   ├── implementer.md        # Developer (Sonnet) - Clotho
 │   └── explorer.md           # Scout (Haiku)
 ├── skills/
-│   ├── loom-workflow/      # Master workflow skill
+│   ├── loom-workflow/        # Master workflow skill
 │   ├── context-template/     # context.md template
 │   ├── plan-template/        # implementation-plan.md template
-│   ├── tasks-template/       # tasks.md template
 │   ├── review-template/      # review files template
-│   └── research-template/    # research.md template
+│   ├── research-template/    # research.md template
+│   ├── loom-status/          # Status display
+│   ├── loom-approve/         # Task approval
+│   ├── loom-reject/          # Task rejection
+│   └── loom-skip/            # Task skip
 ├── hooks/
 │   └── hooks.json            # Lifecycle hooks with guardrails
 └── README.md

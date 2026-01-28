@@ -10,19 +10,6 @@
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use/validate-write.js",
             "timeout": 5000
-          },
-          {
-            "type": "prompt",
-            "prompt": "<write-guardrail>\n\n<applicability>\nThis guardrail ONLY applies to files in .claude/loom/threads/ directory.\nFor ALL OTHER files: This hook does not apply. Proceed normally.\n</applicability>\n\n<loom-artifact-guidance applies-to=\".claude/loom/threads/*\">\nThe command hook (validate-write.js) enforces file preconditions.\nIf the command hook allowed this write (no error message above), you MAY PROCEED.\n\nGUIDANCE (for quality, not blocking):\n- Template skills provide proper artifact formats\n- Content should align with context.md\n</loom-artifact-guidance>\n\n</write-guardrail>"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "<edit-guardrail>\n\n<applicability>\nThis guardrail ONLY applies to files in .claude/loom/threads/ directory.\nFor ALL OTHER files: This hook does not apply. Proceed normally.\n</applicability>\n\n<tasks-md-edits applies-to=\".claude/loom/threads/*/tasks.md\">\n<allowed>Update checkbox status, Progress line, Last Updated timestamp, Blocked Tasks section</allowed>\n<forbidden>Modifying task descriptions after review, removing tasks, changing task IDs</forbidden>\n<checkbox-syntax>[ ]=pending, [~]=in-progress, [x]=complete, [!]=blocked</checkbox-syntax>\n</tasks-md-edits>\n\n</edit-guardrail>"
           }
         ]
       },
@@ -30,35 +17,19 @@
         "matcher": "Task",
         "hooks": [
           {
-            "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use/validate-task.js",
-            "timeout": 5000
-          },
-          {
             "type": "prompt",
-            "prompt": "<delegation-guidance>\n\nThe command hook (validate-task.js) enforces delegation rules.\nIf the command hook allowed this delegation (no error message above), you MAY PROCEED.\n\nREFERENCE - Available Loom agents:\n- loom:planner - Creates implementation plans from context.md\n- loom:code-reviewer - Reviews plans and implementations\n- loom:implementer - Executes individual tasks from tasks.md\n- loom:explorer - Fast codebase reconnaissance\n\nClaude Code built-ins (Explore, Plan, general-purpose) are also available.\n\n</delegation-guidance>"
+            "prompt": "<delegation-guidance>\n\nREFERENCE - Available Loom agents:\n- loom:planner - Creates implementation plans from context.md\n- loom:code-reviewer - Reviews plans and implementations\n- loom:implementer - Executes individual tasks\n- loom:explorer - Fast codebase reconnaissance\n\nClaude Code built-ins (Explore, Plan, general-purpose) are also available.\n\n</delegation-guidance>"
           }
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Task",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use/handle-subagent-complete.js",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
+    "PostToolUse": [],
     "Stop": [
       {
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "<session-end>\n<reminder>If there is an active loom session, consider updating the Session Log in tasks.md before ending.</reminder>\n</session-end>"
+            "prompt": "<session-end>\n<reminder>If there is an active loom session, consider checking task status with /loom-status before ending.</reminder>\n</session-end>"
           }
         ]
       }

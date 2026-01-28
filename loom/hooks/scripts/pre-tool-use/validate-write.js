@@ -4,13 +4,12 @@
  * Exit 0 = allow, Exit 2 = block (stderr shown to Claude)
  *
  * Enforces review-gated phase progression:
- *   context.md → review-context.md → implementation-plan.md → review-plan.md → tasks.md → review-tasks.md → execution
+ *   context.md → review-context.md → implementation-plan.md → review-implementation.md → execution
  */
 
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { isLoomArtifactPath, parseArtifactPath, checkReviewApproved, getTicketId } from '../utils/file-utils.js';
-import { initState } from '../utils/state.js';
+import { join } from 'node:path';
+import { isLoomArtifactPath, parseArtifactPath, checkReviewApproved } from '../utils/file-utils.js';
 
 /**
  * Validate preconditions for writing a loom artifact
@@ -34,11 +33,6 @@ export function validateWrite(filePath) {
   switch (filename) {
     case 'context.md':
       // No preconditions - first artifact
-      // Initialize state.json if it doesn't exist
-      const ticketId = getTicketId(sessionDir);
-      if (!existsSync(join(sessionDir, 'state.json'))) {
-        initState(sessionDir, ticketId);
-      }
       return { allowed: true };
 
     case 'research.md':
@@ -66,28 +60,6 @@ export function validateWrite(filePath) {
       }
       return { allowed: true };
 
-    case 'tasks.md':
-      if (!existsSync(join(sessionDir, 'context.md'))) {
-        return {
-          allowed: false,
-          reason: 'BLOCKED: context.md must exist before creating tasks.md'
-        };
-      }
-      if (!existsSync(join(sessionDir, 'implementation-plan.md'))) {
-        return {
-          allowed: false,
-          reason: 'BLOCKED: implementation-plan.md must exist before creating tasks.md\nCreate implementation-plan.md first by invoking the plan-template skill.'
-        };
-      }
-      // REVIEW GATE: implementation-plan.md must be reviewed and approved
-      if (!checkReviewApproved(join(sessionDir, 'review-plan.md'))) {
-        return {
-          allowed: false,
-          reason: 'BLOCKED: implementation-plan.md must be reviewed and APPROVED before creating tasks.md\nDelegate to loom:code-reviewer to review implementation-plan.md first.'
-        };
-      }
-      return { allowed: true };
-
     case 'review-context.md':
       if (!existsSync(join(sessionDir, 'context.md'))) {
         return {
@@ -97,7 +69,7 @@ export function validateWrite(filePath) {
       }
       return { allowed: true };
 
-    case 'review-plan.md':
+    case 'review-implementation.md':
       if (!existsSync(join(sessionDir, 'implementation-plan.md'))) {
         return {
           allowed: false,
@@ -106,22 +78,13 @@ export function validateWrite(filePath) {
       }
       return { allowed: true };
 
-    case 'review-tasks.md':
-      if (!existsSync(join(sessionDir, 'tasks.md'))) {
-        return {
-          allowed: false,
-          reason: 'BLOCKED: tasks.md must exist before reviewing it'
-        };
-      }
-      return { allowed: true };
-
     default:
       // Handle review-task-*.md pattern
       if (/^review-task-.*\.md$/.test(filename)) {
-        if (!checkReviewApproved(join(sessionDir, 'review-tasks.md'))) {
+        if (!checkReviewApproved(join(sessionDir, 'review-implementation.md'))) {
           return {
             allowed: false,
-            reason: 'BLOCKED: tasks.md must be reviewed and APPROVED before entering execution phase\nDelegate to loom:code-reviewer to review tasks.md first.'
+            reason: 'BLOCKED: implementation-plan.md must be reviewed and APPROVED before entering execution phase\nDelegate to loom:code-reviewer to review implementation-plan.md first.'
           };
         }
         return { allowed: true };

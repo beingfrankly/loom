@@ -156,7 +156,9 @@ Group related changes into logical phases. This helps with task breakdown and re
 </writing-guidelines>
 
 <next-step>
-After creating implementation-plan.md, invoke the tasks-template skill and create tasks.md.
+After creating implementation-plan.md, create native tasks using TaskCreate for each task.
+Include metadata: loom_task_id, ticket_id, delivers_ac, agent, files, group, cycle_count, max_cycles.
+Set task dependencies using TaskUpdate with addBlockedBy/addBlocks as needed.
 </next-step>
 
 </plan-template-system>

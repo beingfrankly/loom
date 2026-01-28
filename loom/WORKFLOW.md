@@ -16,7 +16,7 @@ flowchart LR
     subgraph Phase2[" Phase 2: Planning "]
         CTX --> P[Planner]
         P --> PLAN[implementation-plan.md]
-        P --> TASKS[tasks.md]
+        P --> TASKS[Native Tasks]
     end
 
     subgraph Phase3[" Phase 3: Review "]
@@ -48,29 +48,17 @@ For exploring ideas and designing before coding:
 ### Ticket Mode
 For executing on defined work:
 1. **Context Definition** - What, Why, Acceptance Criteria
-2. **Planning** - Implementation plan and task breakdown
+2. **Planning** - Implementation plan and native task creation
 3. **Review** - Plan approval
 4. **Execution** - Task implementation with review cycles
 5. **Completion** - Final review and summary
-
-### Artifact Flow Between Modes
-
-```
-Research Mode          Ticket Mode
-─────────────          ───────────
-context.md ──────────► context.md
-research.md ─────────► (informs implementation-plan.md)
-                       implementation-plan.md
-                       tasks.md
-                       review-*.md
-```
 
 ## The Agents
 
 | Agent | Model | Role | Color |
 |-------|-------|------|-------|
 | **Lachesis** | Opus | Coordinates workflow, never implements | Purple |
-| **Planner** | Sonnet | Creates plans and task breakdowns | Blue |
+| **Planner** | Sonnet | Creates plans and native tasks | Blue |
 | **Code Reviewer** | Sonnet | Reviews plans and implementations | Orange |
 | **Implementer** | Sonnet | Executes individual tasks | Green |
 | **Explorer** | Haiku | Fast codebase reconnaissance | Cyan |
@@ -83,9 +71,34 @@ Loom uses **skills instead of MCP tools**. Before writing any artifact, agents m
 |----------|---------------|
 | `context.md` | `context-template` |
 | `implementation-plan.md` | `plan-template` |
-| `tasks.md` | `tasks-template` |
 | `review-*.md` | `review-template` |
 | `research.md` | `research-template` |
+
+## Native Task Management
+
+Loom uses Claude Code's **native task system** instead of a tasks.md file:
+
+| Tool | Purpose |
+|------|---------|
+| `TaskCreate` | Create new tasks with metadata |
+| `TaskList` | List all tasks with status |
+| `TaskGet` | Get full task details |
+| `TaskUpdate` | Update status and metadata |
+
+### Task Metadata Schema
+
+```json
+{
+  "loom_task_id": "TASK-001",
+  "ticket_id": "II-5092",
+  "delivers_ac": ["AC1", "AC2"],
+  "agent": "implementer",
+  "files": ["src/feature.ts"],
+  "group": "Phase 1: Setup",
+  "cycle_count": 0,
+  "max_cycles": 3
+}
+```
 
 ## Automatic Progression & Background Reviews
 
@@ -100,19 +113,12 @@ The Loom workflow uses **automatic progression** on the happy path to minimize u
 
 ### Background Review Behavior
 
-When the planner completes creating `implementation-plan.md` and `tasks.md`:
+When the planner completes creating `implementation-plan.md` and native tasks:
 
 1. **No confirmation needed** - Lachesis immediately delegates to code-reviewer
 2. **Background mode** - Uses `run_in_background: true` so user can continue working
 3. **User notified** - "Plan review running in background. You can continue working."
 4. **Output file** - When complete, Lachesis reads the output file to get the verdict
-
-### Automatic Proceed on APPROVED
-
-When code-reviewer returns **APPROVED**:
-- Automatically proceed to next phase without asking user
-- For plan approval: proceed to execution phase
-- For task approval: mark task complete, proceed to next task
 
 ### User Intervention Points
 
@@ -120,8 +126,6 @@ Lachesis **stops and waits for user guidance** when:
 - **NEEDS_REVISION** verdict - User decides how to address feedback
 - **REJECTED** verdict - Fundamental issues need resolution
 - **3-cycle limit reached** - Human escalation required
-
-This means the happy path (context → plan → review:APPROVED → execution) flows automatically with reviews running in the background.
 
 ## Detailed Workflow
 
@@ -151,13 +155,6 @@ sequenceDiagram
     Note over L,FS: .claude/loom/threads/ii-5092/context.md
 ```
 
-**context.md contains:**
-- **What**: The deliverable
-- **Why**: Business value
-- **Acceptance Criteria**: Measurable success conditions
-- **Constraints**: Technical/business requirements
-- **Out of Scope**: What NOT to build
-
 ### Phase 2: Planning
 
 The **Planner** transforms context into actionable work.
@@ -169,6 +166,7 @@ sequenceDiagram
     participant SK as Skill Tool
     participant E as Explorer
     participant FS as File System
+    participant TC as TaskCreate
 
     L->>P: "Create implementation plan"
     P->>SK: Invoke plan-template skill
@@ -177,8 +175,6 @@ sequenceDiagram
     FS-->>P: Context content
 
     opt Codebase Research Needed
-        P-->>L: "Plan complete, but needed exploration first"
-        Note over P,E: Planner can delegate to Explorer directly<br/>for codebase research during planning
         P->>E: "Find existing patterns for X"
         E->>FS: Glob/Grep/Read
         E-->>P: Exploration findings
@@ -187,9 +183,8 @@ sequenceDiagram
     P->>P: Design technical approach
     P->>FS: Write implementation-plan.md
 
-    P->>SK: Invoke tasks-template skill
-    SK-->>P: Template loaded
-    P->>FS: Write tasks.md
+    P->>TC: Create native tasks
+    TC-->>P: Tasks created
 
     P-->>L: "Plan ready for review"
 ```
@@ -202,21 +197,22 @@ sequenceDiagram
    - AC → Task mapping
    - Risks & mitigations
 
-2. **tasks.md**
+2. **Native Tasks** (via TaskCreate)
    - Atomic tasks (1-15 min each)
-   - Agent assignments
-   - Dependencies
+   - Agent assignments in metadata
+   - Dependencies via TaskUpdate
    - Per-task acceptance criteria
 
 ### Phase 3: Review Loop (Automatic & Background)
 
-The **Code Reviewer** validates the plan against context.md. This phase runs **automatically in background**.
+The **Code Reviewer** validates the plan against context.md.
 
 ```mermaid
 sequenceDiagram
     participant L as Lachesis
     participant CR as Code Reviewer
     participant FS as File System
+    participant TL as TaskList
     participant H as Human
 
     Note over L: Planner just completed
@@ -224,7 +220,8 @@ sequenceDiagram
     L->>H: "Plan review running in background"
     Note over H: User can continue working
 
-    CR->>FS: Read context.md, plan, tasks
+    CR->>FS: Read context.md, plan
+    CR->>TL: Verify tasks exist
     CR->>CR: Validate plan
     CR->>FS: Write review-implementation.md
 
@@ -241,73 +238,41 @@ sequenceDiagram
     end
 ```
 
-```mermaid
-flowchart TD
-    PLAN[implementation-plan.md] --> CR[Code Reviewer Reviews]
-    CR --> VERDICT{Verdict?}
-
-    VERDICT -->|APPROVED| EXEC[Proceed to Execution<br/>AUTOMATICALLY]
-    VERDICT -->|NEEDS_REVISION| STOP1[STOP - Inform User]
-    VERDICT -->|REJECTED| STOP2[STOP - Escalate to Human]
-
-    STOP1 --> PLANNER[User decides → Back to Planner]
-    STOP2 --> HUMAN[User resolves fundamental issues]
-
-    PLANNER --> |Revises plan| PLAN
-
-    subgraph Review Checks
-        CHK1[Every AC has tasks?]
-        CHK2[Constraints respected?]
-        CHK3[Out of scope excluded?]
-        CHK4[Tasks atomic & correct?]
-        CHK5[Dependencies valid?]
-    end
-
-    CR --> Review Checks
-```
-
-**Review verdicts:**
-- **APPROVED**: Plan meets all criteria, **automatically proceed**
-- **NEEDS_REVISION**: Issues found, **stop and inform user**
-- **REJECTED**: Fundamental problems, **stop and escalate to user**
-
 ### Phase 4: Task Execution (Mandatory Review Cycle)
 
-**Lachesis** coordinates task execution through the **Implementer** with **mandatory Code Reviewer review** after each task. A maximum of 3 cycles prevents endless gold-plating loops.
+**Lachesis** coordinates task execution with **mandatory Code Reviewer review** after each task.
 
 ```mermaid
 sequenceDiagram
     participant L as Lachesis
+    participant TL as TaskList/Update
     participant I as Implementer
     participant CR as Code Reviewer
     participant FS as File System
 
     loop For each ready task
-        L->>FS: Read tasks.md (find [ ] pending)
-        FS-->>L: Task list
+        L->>TL: TaskList (find pending)
+        TL-->>L: Next task
 
-        L->>FS: Edit tasks.md ([ ] → [~])
+        L->>TL: TaskUpdate (status: in_progress)
         Note over L: Initialize cycle = 1
 
         loop Up to 3 cycles
-            L->>I: "Execute TASK-001"
-            I->>FS: Read context.md + tasks.md
+            L->>I: "Execute task {id}"
             I->>I: Implement solution
-            I-->>L: "TASK-001 complete"
+            I-->>L: "Task complete"
 
-            L->>CR: "Review TASK-001" (MANDATORY)
-            CR->>FS: Write review-task-001.md
+            L->>CR: "Review task" (MANDATORY)
+            CR->>FS: Write review-task-NNN.md
             CR-->>L: Review verdict
 
             alt APPROVED
-                L->>FS: Edit tasks.md ([~] → [x])
-                L->>FS: Update Progress line
+                L->>TL: TaskUpdate (status: completed)
                 Note over L: Break loop, next task
             else NEEDS_REVISION & cycle < 3
                 Note over L: cycle++, continue loop
             else NEEDS_REVISION & cycle >= 3
                 L->>L: STOP - Escalate to human
-                Note over L: Human decides: accept, guide, simplify, or skip
             end
         end
     end
@@ -319,34 +284,20 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> pending: Task created
     pending --> in_progress: Lachesis assigns
-    in_progress --> complete: Implementation done
-    in_progress --> blocked: Dependency issue
-    blocked --> in_progress: Blocker resolved
-    complete --> [*]
+    in_progress --> completed: Review approved
+    in_progress --> blocked: Max cycles or skip
+    blocked --> in_progress: Human unblocks
+    completed --> [*]
 
-    note right of pending: [ ] checkbox
-    note right of in_progress: [~] checkbox
-    note right of complete: [x] checkbox
-    note right of blocked: [!] checkbox
+    note right of pending: TaskList shows pending
+    note right of in_progress: TaskUpdate status
+    note right of completed: TaskUpdate status
+    note right of blocked: metadata.blocked=true
 ```
 
 ### Phase 5: Completion
 
 Final review validates all acceptance criteria are met.
-
-```mermaid
-flowchart TD
-    TASKS_DONE[All Tasks Complete] --> FINAL_REVIEW[Code Reviewer: Final Review]
-    FINAL_REVIEW --> CHECK{All AC met?}
-
-    CHECK -->|Yes| COMPLETE[Session Complete]
-    CHECK -->|No| GAP[Identify Gaps]
-    GAP --> NEW_TASKS[Create Additional Tasks]
-    NEW_TASKS --> EXECUTE[Back to Execution]
-
-    COMPLETE --> LOG[Update tasks.md session log]
-    LOG --> LEARN[Extract Meta-Learning]
-```
 
 ## Artifact Flow
 
@@ -357,145 +308,31 @@ flowchart TD
     subgraph Artifacts
         CTX[context.md]
         PLAN[implementation-plan.md]
-        TASKS[tasks.md<br/>includes session log]
         REV1[review-implementation.md]
         REV2[review-task-NNN.md]
     end
 
+    subgraph Native Tasks
+        TL[TaskList]
+        TG[TaskGet]
+        TU[TaskUpdate]
+    end
+
     subgraph Creation
         CTX -->|"Planner reads"| PLAN
-        CTX -->|"Planner reads"| TASKS
         PLAN -->|"Code Reviewer reviews"| REV1
-        TASKS -->|"Implementer executes"| REV2
+        TL -->|"Implementer executes"| REV2
     end
 ```
 
-## Agent Interaction Map
+## Human Commands
 
-```mermaid
-flowchart TB
-    LACH[Lachesis<br/>purple]
-
-    LACH -->|"Create plan"| PLAN[Planner<br/>blue]
-    LACH -->|"Review work"| CR[Code Reviewer<br/>orange]
-    LACH -->|"Execute task"| IMPL[Implementer<br/>green]
-    LACH -->|"Explore code"| EXPL[Explorer<br/>cyan]
-
-    PLAN -->|"Explore code"| EXPL
-
-    subgraph "Never Direct"
-        PLAN -.->|"No direct"| IMPL
-        EXPL -.->|"No direct"| IMPL
-        CR -.->|"No direct"| PLAN
-        CR -.->|"No direct"| IMPL
-    end
-```
-
-**Key rules:**
-- Lachesis coordinates all major workflow transitions
-- Planner MAY delegate directly to Explorer (for codebase research during planning)
-- Code Reviewer reports verdicts to Lachesis who handles routing
-- Only Lachesis delegates to Planner, Code Reviewer, Implementer
-- Explorer is read-only and never delegates
-
-## Complete Session Flow
-
-```mermaid
-flowchart TD
-    START([Human mentions ticket]) --> INIT[Initialize Session]
-    INIT --> SKILL1[Invoke context-template skill]
-    SKILL1 --> CONTEXT[Define Context]
-    CONTEXT --> EXPLORE{Need exploration?}
-
-    EXPLORE -->|Yes| EXPLORER[Explorer: Reconnaissance]
-    EXPLORER --> PLANNING
-    EXPLORE -->|No| PLANNING[Planner: Create Plan]
-
-    PLANNING --> SKILL2[Invoke plan-template + tasks-template skills]
-    SKILL2 --> REVIEW[Code Reviewer: Review Plan<br/>BACKGROUND MODE]
-    REVIEW --> SKILL3[Invoke review-template skill]
-    SKILL3 --> VERDICT{Approved?}
-
-    VERDICT -->|No: NEEDS_REVISION| STOP_REV[STOP - Inform User]
-    STOP_REV --> REVISE[User decides → Planner: Revise]
-    REVISE --> REVIEW
-
-    VERDICT -->|Yes| EXECUTE[Execute Tasks<br/>AUTO-PROCEED]
-
-    EXECUTE --> TASK_LOOP{More tasks?}
-    TASK_LOOP -->|Yes| NEXT_TASK[Get Ready Task]
-    NEXT_TASK --> UPDATE_START[Edit tasks.md: [ ] → ~]
-    UPDATE_START --> INIT_CYCLE[Initialize cycle = 1]
-    INIT_CYCLE --> IMPLEMENT[Implementer: Execute]
-    IMPLEMENT --> CR_REVIEW[Code Reviewer: Review Task - MANDATORY]
-
-    CR_REVIEW --> TASK_OK{Approved?}
-    TASK_OK -->|No, cycle < 3| IMPL_AGAIN[Increment cycle]
-    IMPL_AGAIN --> IMPLEMENT
-    TASK_OK -->|No, cycle >= 3| HUMAN_INT[Human Intervention]
-    HUMAN_INT --> UPDATE_DONE
-    TASK_OK -->|Yes| UPDATE_DONE[Edit tasks.md: ~ → x]
-
-    UPDATE_DONE --> TASK_LOOP
-
-    TASK_LOOP -->|No| FINAL[Code Reviewer: Final Review]
-    FINAL --> DONE{All AC met?}
-
-    DONE -->|No| GAP_TASKS[Create Gap Tasks]
-    GAP_TASKS --> EXECUTE
-
-    DONE -->|Yes| COMPLETE([Session Complete])
-
-    style START fill:#e1bee7
-    style COMPLETE fill:#c8e6c9
-    style EXPLORER fill:#b2ebf2
-    style PLANNING fill:#bbdefb
-    style REVIEW fill:#ffe0b2
-    style IMPLEMENT fill:#c8e6c9
-```
-
-## Example Session
-
-```
-Human: "Let's work on II-5092 - Add user preferences API"
-
-Lachesis:
-  [Invokes context-template skill]
-  Helps define context
-  → Writes: context.md
-
-Lachesis → Planner: "Create the implementation plan"
-  [Planner invokes plan-template skill]
-  [Planner invokes tasks-template skill]
-  → Writes: implementation-plan.md, tasks.md
-
-Lachesis → Code Reviewer (BACKGROUND): "Review the plan"
-  [Tells user: "Plan review running in background"]
-  [Code Reviewer invokes review-template skill]
-  → Writes: review-implementation.md (APPROVED)
-
-Lachesis: [Reads output file, sees APPROVED]
-  [AUTO-PROCEEDS to execution]
-  [Edits tasks.md: TASK-001 [ ] → [~]]
-  [Initialize cycle = 1]
-
-Lachesis → Implementer: "Execute TASK-001"
-  → Changes: src/api/preferences.ts
-
-Lachesis → Code Reviewer: "Review TASK-001" (MANDATORY)
-  → Writes: review-task-001.md (APPROVED after 1 cycle)
-
-Lachesis:
-  [Edits tasks.md: TASK-001 [~] → [x], Progress: 1/5]
-  [Session Log: TASK-001 completed, 1 cycle]
-
-... repeat for remaining tasks ...
-
-Lachesis → Code Reviewer: "Final review against context.md"
-  → All acceptance criteria met
-
-Lachesis: "II-5092 complete!"
-```
+| Command | Purpose |
+|---------|---------|
+| `/loom-status` | Display current state, task progress |
+| `/loom-approve` | Approve task, mark complete, move to next |
+| `/loom-reject "feedback"` | Reject with feedback, increment cycle |
+| `/loom-skip "reason"` | Skip blocked task, move to next |
 
 ## Skill Reference
 
@@ -504,7 +341,6 @@ Lachesis: "II-5092 complete!"
 | `loom-workflow` | Lachesis, Planner, Code Reviewer | Master workflow and delegation patterns |
 | `context-template` | Lachesis | Template for context.md |
 | `plan-template` | Planner | Template for implementation-plan.md |
-| `tasks-template` | Planner | Template for tasks.md |
 | `review-template` | Code Reviewer | Template for review files |
 | `research-template` | Lachesis | Template for research.md |
 
@@ -522,5 +358,9 @@ All agents use native Claude Code tools:
 | `Bash` | Implementer | Run commands |
 | `Task` | Lachesis, Planner* | Delegate to agents |
 | `Skill` | Lachesis, Planner, Code Reviewer | Load template skills |
+| `TaskCreate` | Planner | Create native tasks |
+| `TaskList` | All | List tasks |
+| `TaskGet` | All | Get task details |
+| `TaskUpdate` | Lachesis | Update task status |
 
 *Planner may only delegate to Explorer for codebase research

@@ -38,7 +38,7 @@ This provides the review format and verdict definitions.
 
 <review type="implementation">
 <file>review-implementation.md</file>
-<reviews>implementation-plan.md and tasks.md</reviews>
+<reviews>implementation-plan.md and native tasks</reviews>
 <against>context.md (source of truth)</against>
 <when>After planner creates plan, before execution</when>
 </review>
@@ -46,7 +46,7 @@ This provides the review format and verdict definitions.
 <review type="task">
 <file>review-task-{NNN}.md</file>
 <reviews>Individual task implementation</reviews>
-<against>Task requirements from tasks.md</against>
+<against>Task requirements from TaskGet</against>
 <when>After implementer completes a task (MANDATORY)</when>
 </review>
 
@@ -73,8 +73,8 @@ Everything must be validated against this.
 </step>
 
 <step order="3" name="Read Subject">
-For plan review: read implementation-plan.md and tasks.md
-For task review: read the code changes and task from tasks.md
+For plan review: read implementation-plan.md and use TaskList/TaskGet
+For task review: read the code changes and use TaskGet for task details
 </step>
 
 <step order="4" name="Systematic Check">
@@ -102,6 +102,20 @@ Include actionable feedback for every issue.
 </step>
 
 </review-workflow>
+
+## Checking Tasks with Native Task System
+
+Use these tools to verify task coverage:
+
+```
+TaskList()  # Get all tasks with status
+TaskGet(taskId="1")  # Get full task details including metadata
+```
+
+When reviewing the plan, verify:
+- Tasks exist for every AC (check `delivers_ac` in metadata)
+- Tasks have proper dependencies set
+- Task descriptions are clear and actionable
 
 ## Verdicts
 
@@ -138,16 +152,16 @@ Include actionable feedback for every issue.
 </section>
 
 <section name="AC Coverage">
-<check>Every AC from context.md is in AC Coverage table</check>
-<check>Every AC has at least one task assigned</check>
+<check>Every AC from context.md has tasks (use TaskList + TaskGet)</check>
+<check>Every AC has at least one task with matching `delivers_ac`</check>
 <check>Approach for each AC is sound</check>
 </section>
 
 <section name="Task Quality">
 <check>Tasks are atomic (single responsibility)</check>
-<check>Tasks have clear acceptance criteria</check>
-<check>Dependencies are correctly identified</check>
-<check>Agent assignments are appropriate</check>
+<check>Tasks have clear acceptance criteria in description</check>
+<check>Dependencies are correctly set (blockedBy)</check>
+<check>Agent assignments are appropriate (check metadata.agent)</check>
 </section>
 
 <section name="Risks">
@@ -214,4 +228,5 @@ All artifacts in: `.claude/loom/threads/{ticket-id}/`
 <rule id="4">Every issue needs actionable feedback</rule>
 <rule id="5">Don't rubber-stamp - genuine review catches issues</rule>
 <rule id="6">Include meta-learning in every review</rule>
+<rule id="7">Use TaskList and TaskGet to verify task coverage</rule>
 </golden-rules>

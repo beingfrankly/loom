@@ -16,8 +16,8 @@ The code-reviewer's job is to find problems - assume something is wrong and loca
 <review-types>
 <type name="implementation-review">
 <file>review-implementation.md</file>
-<reviews>implementation-plan.md and tasks.md against context.md</reviews>
-<when>After planner creates plan, before execution begins</when>
+<reviews>implementation-plan.md and native tasks against context.md</reviews>
+<when>After planner creates plan and native tasks, before execution begins</when>
 </type>
 <type name="task-review">
 <file>review-task-{NNN}.md</file>
@@ -181,7 +181,7 @@ Examples: Alternative approaches, future considerations
 
 ## Task Summary
 
-**Description:** {Task description from tasks.md}
+**Description:** {Task description from TaskGet}
 **Delivers:** {Which AC}
 **Files Changed:** {List of files}
 

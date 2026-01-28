@@ -53,11 +53,6 @@ describe('validate-write.js', () => {
       assert.strictEqual(result.allowed, true);
     });
 
-    test('initializes state.json when creating context.md', () => {
-      validateWrite(join(sessionDir, 'context.md'));
-      assert.ok(existsSync(join(sessionDir, 'state.json')));
-    });
-
     test('blocks research.md without context.md', () => {
       const result = validateWrite(join(sessionDir, 'research.md'));
       assert.strictEqual(result.allowed, false);
@@ -90,31 +85,6 @@ describe('validate-write.js', () => {
       assert.strictEqual(result.allowed, true);
     });
 
-    test('blocks tasks.md without implementation-plan.md', () => {
-      writeFileSync(join(sessionDir, 'context.md'), '# Context');
-      const result = validateWrite(join(sessionDir, 'tasks.md'));
-      assert.strictEqual(result.allowed, false);
-      assert.ok(result.reason.includes('implementation-plan.md must exist'));
-    });
-
-    test('blocks tasks.md without approved plan review', () => {
-      writeFileSync(join(sessionDir, 'context.md'), '# Context');
-      writeFileSync(join(sessionDir, 'review-context.md'), '**Verdict:** APPROVED');
-      writeFileSync(join(sessionDir, 'implementation-plan.md'), '# Plan');
-      const result = validateWrite(join(sessionDir, 'tasks.md'));
-      assert.strictEqual(result.allowed, false);
-      assert.ok(result.reason.includes('must be reviewed and APPROVED'));
-    });
-
-    test('allows tasks.md with all preconditions met', () => {
-      writeFileSync(join(sessionDir, 'context.md'), '# Context');
-      writeFileSync(join(sessionDir, 'review-context.md'), '**Verdict:** APPROVED');
-      writeFileSync(join(sessionDir, 'implementation-plan.md'), '# Plan');
-      writeFileSync(join(sessionDir, 'review-plan.md'), '**Verdict:** APPROVED');
-      const result = validateWrite(join(sessionDir, 'tasks.md'));
-      assert.strictEqual(result.allowed, true);
-    });
-
     test('blocks review-context.md without context.md', () => {
       const result = validateWrite(join(sessionDir, 'review-context.md'));
       assert.strictEqual(result.allowed, false);
@@ -126,15 +96,11 @@ describe('validate-write.js', () => {
       assert.strictEqual(result.allowed, true);
     });
 
-    test('blocks review-task-001.md without approved tasks review', () => {
-      const result = validateWrite(join(sessionDir, 'review-task-001.md'));
-      assert.strictEqual(result.allowed, false);
-      assert.ok(result.reason.includes('tasks.md must be reviewed'));
-    });
-
-    test('allows review-task-001.md with approved tasks review', () => {
-      writeFileSync(join(sessionDir, 'tasks.md'), '# Tasks');
-      writeFileSync(join(sessionDir, 'review-tasks.md'), '**Verdict:** APPROVED');
+    test('allows review-task files when implementation-plan.md reviewed', () => {
+      writeFileSync(join(sessionDir, 'context.md'), '# Context');
+      writeFileSync(join(sessionDir, 'review-context.md'), '**Verdict:** APPROVED');
+      writeFileSync(join(sessionDir, 'implementation-plan.md'), '# Plan');
+      writeFileSync(join(sessionDir, 'review-implementation.md'), '**Verdict:** APPROVED');
       const result = validateWrite(join(sessionDir, 'review-task-001.md'));
       assert.strictEqual(result.allowed, true);
     });
