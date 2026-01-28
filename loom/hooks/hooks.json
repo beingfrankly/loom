@@ -36,7 +36,7 @@
           },
           {
             "type": "prompt",
-            "prompt": "<delegation-guidance>\n\n<loom-agents prefix=\"loom:\">\n<agent name=\"loom:planner\">Creates implementation plans from context.md</agent>\n<agent name=\"loom:code-reviewer\">Reviews plans and implementations</agent>\n<agent name=\"loom:implementer\">Executes individual tasks from tasks.md</agent>\n<agent name=\"loom:explorer\">Fast codebase reconnaissance</agent>\n</loom-agents>\n\n<usage>Task(subagent_type=\"loom:planner\") to delegate to Loom agents.</usage>\n<note>Claude Code built-ins (Explore, Plan, general-purpose) are also available without prefix.</note>\n\n<prompt-tips for-loom-agents=\"true\">\nInclude: ticket ID, session path, artifacts to read/create, skill to invoke.\n</prompt-tips>\n\n</delegation-guidance>"
+            "prompt": "<delegation-guidance>\n\nThe command hook (validate-task.js) enforces delegation rules.\nIf the command hook allowed this delegation (no error message above), you MAY PROCEED.\n\nREFERENCE - Available Loom agents:\n- loom:planner - Creates implementation plans from context.md\n- loom:code-reviewer - Reviews plans and implementations\n- loom:implementer - Executes individual tasks from tasks.md\n- loom:explorer - Fast codebase reconnaissance\n\nClaude Code built-ins (Explore, Plan, general-purpose) are also available.\n\n</delegation-guidance>"
           }
         ]
       }
