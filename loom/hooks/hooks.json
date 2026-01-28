@@ -13,7 +13,7 @@
           },
           {
             "type": "prompt",
-            "prompt": "<write-guardrail>\n\n<applicability>\nThis guardrail ONLY applies to files in .claude/loom/threads/ directory.\nFor ALL OTHER files: This hook does not apply. Proceed normally.\n</applicability>\n\n<loom-artifact-guidance applies-to=\".claude/loom/threads/*\">\n1. FILE PRECONDITIONS are enforced by validate-write.js (if it allows, you may proceed).\n2. SKILL INVOCATION: Invoke the appropriate template skill before writing.\n3. CONTENT QUALITY: Follow the template format and align with context.md.\n</loom-artifact-guidance>\n\n</write-guardrail>"
+            "prompt": "<write-guardrail>\n\n<applicability>\nThis guardrail ONLY applies to files in .claude/loom/threads/ directory.\nFor ALL OTHER files: This hook does not apply. Proceed normally.\n</applicability>\n\n<loom-artifact-guidance applies-to=\".claude/loom/threads/*\">\nThe command hook (validate-write.js) enforces file preconditions.\nIf the command hook allowed this write (no error message above), you MAY PROCEED.\n\nGUIDANCE (for quality, not blocking):\n- Template skills provide proper artifact formats\n- Content should align with context.md\n</loom-artifact-guidance>\n\n</write-guardrail>"
           }
         ]
       },
