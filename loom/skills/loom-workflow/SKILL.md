@@ -43,6 +43,7 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <rule id="4">NEVER execute tasks unless review-implementation.md shows APPROVED</rule>
 <rule id="5">Lachesis NEVER implements code directly - always delegate to implementer</rule>
 <rule id="6">Every acceptance criterion must map to at least one task</rule>
+<rule id="7">AUTO-PROCEED on APPROVED verdicts - no confirmation needed for happy path</rule>
 </golden-rules>
 
 <workflow-phases>
@@ -97,21 +98,25 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <file must-exist="true">implementation-plan.md</file>
 <file must-exist="true">tasks.md</file>
 </preconditions>
+<automatic-progression>true</automatic-progression>
+<background-mode>true</background-mode>
 
 <steps>
-<step order="1">Lachesis delegates to code-reviewer agent</step>
-<step order="2">Code Reviewer invokes review-template skill</step>
-<step order="3">Code Reviewer reads context.md (the source of truth)</step>
-<step order="4">Code Reviewer validates plan against acceptance criteria</step>
-<step order="5">Code Reviewer checks every AC has at least one task</step>
-<step order="6">Code Reviewer writes review-implementation.md with verdict</step>
+<step order="1">Lachesis IMMEDIATELY delegates to code-reviewer in background mode - no confirmation needed</step>
+<step order="2">Lachesis informs user: "Plan review running in background. You can continue working."</step>
+<step order="3">Code Reviewer invokes review-template skill</step>
+<step order="4">Code Reviewer reads context.md (the source of truth)</step>
+<step order="5">Code Reviewer validates plan against acceptance criteria</step>
+<step order="6">Code Reviewer checks every AC has at least one task</step>
+<step order="7">Code Reviewer writes review-implementation.md with verdict</step>
+<step order="8">When complete, Lachesis reads output file and handles verdict</step>
 </steps>
 
 <output>review-implementation.md</output>
 <branching>
-<if verdict="APPROVED">Proceed to Phase 4: Execution</if>
-<if verdict="NEEDS_REVISION">Return to Phase 2 with feedback</if>
-<if verdict="REJECTED">Return to Phase 1 to clarify context</if>
+<if verdict="APPROVED">Automatically proceed to Phase 4: Execution - no user confirmation needed</if>
+<if verdict="NEEDS_REVISION">STOP - Inform user, then return to Phase 2 with feedback</if>
+<if verdict="REJECTED">STOP - Inform user, then return to Phase 1 to clarify context</if>
 </branching>
 </phase>
 
@@ -131,11 +136,11 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <step order="4">Lachesis delegates task to implementer agent</step>
 <step order="5">MANDATORY: Lachesis delegates to code-reviewer for task review</step>
 <step order="6">Handle review verdict:
-  - APPROVED -> Mark task complete, go to step 9
+  - APPROVED -> Automatically mark task complete and proceed to next task
   - NEEDS_REVISION -> Go to step 7</step>
 <step order="7">Check cycle count:
-  - If cycle &lt; 3: increment cycle, delegate back to implementer with feedback, go to step 5
-  - If cycle &gt;= 3: STOP - escalate to human</step>
+  - If cycle < 3: increment cycle, delegate back to implementer with feedback, go to step 5
+  - If cycle >= 3: STOP - escalate to human</step>
 <step order="8">Human resolves the issue, then continue from step 4 or skip task</step>
 <step order="9">Update task checkbox to complete [x]</step>
 <step order="10">Update Progress line and Session Log in tasks.md</step>
@@ -143,7 +148,7 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 </execution-loop>
 
 <cycle-limit>
-After 3 implementer<->code-reviewer cycles without APPROVED, the task is stuck.
+After 3 implementer-code-reviewer cycles without APPROVED, the task is stuck.
 This prevents endless "gold-plating" loops. Human must decide:
 - Accept current implementation as "good enough"
 - Provide specific guidance to break the deadlock
@@ -175,6 +180,33 @@ This prevents endless "gold-plating" loops. Human must decide:
 </phase>
 
 </workflow-phases>
+
+<automatic-progression-rules>
+<overview>
+Loom uses automatic progression on the happy path to minimize user interruptions.
+Reviews run in background where possible, and APPROVED verdicts proceed without confirmation.
+</overview>
+
+<rule context="after-planner-completes">
+After planner completes:
+1. IMMEDIATELY delegate to code-reviewer - no confirmation
+2. Use background mode (run_in_background=true)
+3. Inform user review is running in background
+4. When complete, read output file and handle verdict
+</rule>
+
+<rule context="on-approved">
+When code-reviewer returns APPROVED:
+- Automatically proceed to next phase
+- No user confirmation needed
+</rule>
+
+<rule context="on-revision-or-reject">
+When code-reviewer returns NEEDS_REVISION or REJECTED:
+- STOP and inform the user
+- Wait for guidance before proceeding
+</rule>
+</automatic-progression-rules>
 
 <session-management>
 <ticket-id-format>
@@ -242,6 +274,7 @@ Auto-updated by: PostToolUse hook after code-reviewer completes
 <transition from="planning" to="execution">
 Trigger: review-tasks.md created with APPROVED verdict
 Auto-updated by: PostToolUse hook after code-reviewer completes
+Auto-proceeds: Yes - no user confirmation needed
 </transition>
 
 <transition task_status="null -> implementing">
@@ -342,7 +375,7 @@ Skip a blocked task and move to the next one.
 <delegation-patterns>
 <pattern name="delegate-to-planner">
 Task(
-  subagent_type="planner",
+  subagent_type="loom:planner",
   allowed_tools=["Read", "Write", "Skill", "Task"],
   prompt="Ticket: {TICKET-ID}
 
@@ -356,9 +389,27 @@ Then invoke tasks-template skill and create tasks.md."
 Note: Planner may delegate to explorer for codebase reconnaissance.
 </pattern>
 
+<pattern name="delegate-to-code-reviewer-background">
+Task(
+  subagent_type="loom:code-reviewer",
+  run_in_background=true,
+  allowed_tools=["Read", "Write", "Skill", "Glob", "Grep"],
+  prompt="Ticket: {TICKET-ID}
+
+First invoke the review-template skill, then read:
+- context.md (source of truth)
+- implementation-plan.md (what to review)
+- tasks.md (verify AC coverage)
+
+Write review-implementation.md with your verdict."
+)
+
+Note: Use run_in_background=true for plan reviews. Read output_file when complete.
+</pattern>
+
 <pattern name="delegate-to-code-reviewer">
 Task(
-  subagent_type="code-reviewer",
+  subagent_type="loom:code-reviewer",
   allowed_tools=["Read", "Write", "Skill", "Glob", "Grep"],
   prompt="Ticket: {TICKET-ID}
 
@@ -373,7 +424,7 @@ Write review-implementation.md with your verdict."
 
 <pattern name="delegate-to-implementer">
 Task(
-  subagent_type="implementer",
+  subagent_type="loom:implementer",
   allowed_tools=["Read", "Write", "Edit"],
   prompt="Ticket: {TICKET-ID}
 Task: {TASK-ID}
@@ -388,7 +439,7 @@ If you need to search the codebase, request that lachesis delegate to explorer."
 
 <pattern name="delegate-to-explorer">
 Task(
-  subagent_type="explorer",
+  subagent_type="loom:explorer",
   allowed_tools=["Read", "Glob", "Grep"],
   prompt="Ticket: {TICKET-ID}
 

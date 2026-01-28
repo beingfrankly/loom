@@ -87,6 +87,42 @@ Loom uses **skills instead of MCP tools**. Before writing any artifact, agents m
 | `review-*.md` | `review-template` |
 | `research.md` | `research-template` |
 
+## Automatic Progression & Background Reviews
+
+The Loom workflow uses **automatic progression** on the happy path to minimize user interruptions:
+
+| After... | Lachesis does... | Mode |
+|----------|------------------|------|
+| Planner completes | Immediately delegates to code-reviewer | **Background** |
+| Review: APPROVED | Immediately proceeds to next phase | Automatic |
+| Implementer completes | Immediately delegates to code-reviewer | Foreground |
+| Task review: APPROVED | Marks complete, proceeds to next task | Automatic |
+
+### Background Review Behavior
+
+When the planner completes creating `implementation-plan.md` and `tasks.md`:
+
+1. **No confirmation needed** - Lachesis immediately delegates to code-reviewer
+2. **Background mode** - Uses `run_in_background: true` so user can continue working
+3. **User notified** - "Plan review running in background. You can continue working."
+4. **Output file** - When complete, Lachesis reads the output file to get the verdict
+
+### Automatic Proceed on APPROVED
+
+When code-reviewer returns **APPROVED**:
+- Automatically proceed to next phase without asking user
+- For plan approval: proceed to execution phase
+- For task approval: mark task complete, proceed to next task
+
+### User Intervention Points
+
+Lachesis **stops and waits for user guidance** when:
+- **NEEDS_REVISION** verdict - User decides how to address feedback
+- **REJECTED** verdict - Fundamental issues need resolution
+- **3-cycle limit reached** - Human escalation required
+
+This means the happy path (context → plan → review:APPROVED → execution) flows automatically with reviews running in the background.
+
 ## Detailed Workflow
 
 ### Phase 1: Context Definition
@@ -172,18 +208,50 @@ sequenceDiagram
    - Dependencies
    - Per-task acceptance criteria
 
-### Phase 3: Review Loop
+### Phase 3: Review Loop (Automatic & Background)
 
-The **Code Reviewer** validates the plan against context.md.
+The **Code Reviewer** validates the plan against context.md. This phase runs **automatically in background**.
+
+```mermaid
+sequenceDiagram
+    participant L as Lachesis
+    participant CR as Code Reviewer
+    participant FS as File System
+    participant H as Human
+
+    Note over L: Planner just completed
+    L->>CR: Delegate review (BACKGROUND MODE)
+    L->>H: "Plan review running in background"
+    Note over H: User can continue working
+
+    CR->>FS: Read context.md, plan, tasks
+    CR->>CR: Validate plan
+    CR->>FS: Write review-implementation.md
+
+    CR-->>L: Review complete (via output file)
+
+    alt APPROVED
+        L->>L: Proceed to Phase 4 automatically
+    else NEEDS_REVISION
+        L->>H: "Review found issues: {feedback}"
+        Note over L: Wait for user guidance
+    else REJECTED
+        L->>H: "Plan rejected: {reasons}"
+        Note over L: Wait for user guidance
+    end
+```
 
 ```mermaid
 flowchart TD
     PLAN[implementation-plan.md] --> CR[Code Reviewer Reviews]
     CR --> VERDICT{Verdict?}
 
-    VERDICT -->|APPROVED| EXEC[Proceed to Execution]
-    VERDICT -->|NEEDS_REVISION| PLANNER[Back to Planner]
-    VERDICT -->|REJECTED| HUMAN[Escalate to Human]
+    VERDICT -->|APPROVED| EXEC[Proceed to Execution<br/>AUTOMATICALLY]
+    VERDICT -->|NEEDS_REVISION| STOP1[STOP - Inform User]
+    VERDICT -->|REJECTED| STOP2[STOP - Escalate to Human]
+
+    STOP1 --> PLANNER[User decides → Back to Planner]
+    STOP2 --> HUMAN[User resolves fundamental issues]
 
     PLANNER --> |Revises plan| PLAN
 
@@ -199,9 +267,9 @@ flowchart TD
 ```
 
 **Review verdicts:**
-- **APPROVED**: Plan meets all criteria, proceed
-- **NEEDS_REVISION**: Issues found, planner must fix
-- **REJECTED**: Fundamental problems, escalate to human
+- **APPROVED**: Plan meets all criteria, **automatically proceed**
+- **NEEDS_REVISION**: Issues found, **stop and inform user**
+- **REJECTED**: Fundamental problems, **stop and escalate to user**
 
 ### Phase 4: Task Execution (Mandatory Review Cycle)
 
@@ -344,14 +412,15 @@ flowchart TD
     EXPLORE -->|No| PLANNING[Planner: Create Plan]
 
     PLANNING --> SKILL2[Invoke plan-template + tasks-template skills]
-    SKILL2 --> REVIEW[Code Reviewer: Review Plan]
+    SKILL2 --> REVIEW[Code Reviewer: Review Plan<br/>BACKGROUND MODE]
     REVIEW --> SKILL3[Invoke review-template skill]
     SKILL3 --> VERDICT{Approved?}
 
-    VERDICT -->|No| REVISE[Planner: Revise]
+    VERDICT -->|No: NEEDS_REVISION| STOP_REV[STOP - Inform User]
+    STOP_REV --> REVISE[User decides → Planner: Revise]
     REVISE --> REVIEW
 
-    VERDICT -->|Yes| EXECUTE[Execute Tasks]
+    VERDICT -->|Yes| EXECUTE[Execute Tasks<br/>AUTO-PROCEED]
 
     EXECUTE --> TASK_LOOP{More tasks?}
     TASK_LOOP -->|Yes| NEXT_TASK[Get Ready Task]
@@ -400,11 +469,13 @@ Lachesis → Planner: "Create the implementation plan"
   [Planner invokes tasks-template skill]
   → Writes: implementation-plan.md, tasks.md
 
-Lachesis → Code Reviewer: "Review the plan"
+Lachesis → Code Reviewer (BACKGROUND): "Review the plan"
+  [Tells user: "Plan review running in background"]
   [Code Reviewer invokes review-template skill]
   → Writes: review-implementation.md (APPROVED)
 
-Lachesis:
+Lachesis: [Reads output file, sees APPROVED]
+  [AUTO-PROCEEDS to execution]
   [Edits tasks.md: TASK-001 [ ] → [~]]
   [Initialize cycle = 1]
 

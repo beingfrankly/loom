@@ -8,12 +8,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-write.sh",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use/validate-write.js",
             "timeout": 5000
           },
           {
             "type": "prompt",
-            "prompt": "<write-guardrail>\n\n<scope-gate>\nFIRST: Check if the file_path parameter contains \".claude/loom/threads/\"\n- If file_path does NOT contain \".claude/loom/threads/\": STOP READING. This guardrail does not apply. Proceed with the write.\n- If file_path DOES contain \".claude/loom/threads/\": Continue to the guidance below.\n</scope-gate>\n\n<loom-artifact-guidance>\nFor loom session artifacts:\n\n1. FILE PRECONDITIONS are enforced by the shell script (validate-write.sh).\n   - If the shell script allows the write, all file preconditions are satisfied.\n   - If blocked by the script, it will tell you what file is missing.\n\n2. SKILL INVOCATION is guided by the SessionStart hook.\n   - You should have invoked the appropriate template skill before writing.\n   - If you haven't, the content may not follow the correct format.\n\n3. CONTENT QUALITY checks (advisory, not blocking):\n   - Does the content follow the template format?\n   - Does the content align with context.md acceptance criteria?\n</loom-artifact-guidance>\n\n</write-guardrail>"
+            "prompt": "<write-guardrail>\n\n<applicability>\nThis guardrail ONLY applies to files in .claude/loom/threads/ directory.\nFor ALL OTHER files: This hook does not apply. Proceed normally.\n</applicability>\n\n<loom-artifact-guidance applies-to=\".claude/loom/threads/*\">\n1. FILE PRECONDITIONS are enforced by validate-write.js (if it allows, you may proceed).\n2. SKILL INVOCATION: Invoke the appropriate template skill before writing.\n3. CONTENT QUALITY: Follow the template format and align with context.md.\n</loom-artifact-guidance>\n\n</write-guardrail>"
           }
         ]
       },
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "<edit-guardrail>\n\n<scope-gate>\nFIRST: Check if the file_path parameter contains \".claude/loom/threads/\"\n- If file_path does NOT contain \".claude/loom/threads/\": STOP READING. This guardrail does not apply. Proceed with the edit.\n- If file_path DOES contain \".claude/loom/threads/\": Continue to the rules below.\n</scope-gate>\n\n<tasks-md-edits>\n<allowed-changes>\n<change>Update checkbox status: [ ] to [~] to [x] or [!]</change>\n<change>Update Progress line: **Progress:** N/M tasks complete</change>\n<change>Update Last Updated timestamp</change>\n<change>Add entry to Blocked Tasks section</change>\n</allowed-changes>\n<forbidden-changes>\n<change>Modifying task descriptions after review approval</change>\n<change>Removing tasks</change>\n<change>Changing task IDs</change>\n</forbidden-changes>\n</tasks-md-edits>\n\n<checkbox-syntax>\n<status symbol=\"[ ]\" meaning=\"pending\">Task not started</status>\n<status symbol=\"[~]\" meaning=\"in-progress\">Currently being worked</status>\n<status symbol=\"[x]\" meaning=\"complete\">Task finished</status>\n<status symbol=\"[!]\" meaning=\"blocked\">Cannot proceed</status>\n</checkbox-syntax>\n\n<update-checklist>\n<check>Am I only changing allowed fields?</check>\n<check>Did I update the Progress count if completing a task?</check>\n<check>Did I update the Last Updated timestamp?</check>\n</update-checklist>\n\n</edit-guardrail>"
+            "prompt": "<edit-guardrail>\n\n<applicability>\nThis guardrail ONLY applies to files in .claude/loom/threads/ directory.\nFor ALL OTHER files: This hook does not apply. Proceed normally.\n</applicability>\n\n<tasks-md-edits applies-to=\".claude/loom/threads/*/tasks.md\">\n<allowed>Update checkbox status, Progress line, Last Updated timestamp, Blocked Tasks section</allowed>\n<forbidden>Modifying task descriptions after review, removing tasks, changing task IDs</forbidden>\n<checkbox-syntax>[ ]=pending, [~]=in-progress, [x]=complete, [!]=blocked</checkbox-syntax>\n</tasks-md-edits>\n\n</edit-guardrail>"
           }
         ]
       },
@@ -31,12 +31,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-task.sh",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use/validate-task.js",
             "timeout": 5000
           },
           {
             "type": "prompt",
-            "prompt": "<delegation-guidance>\n\n<note>Loom plugin agents are namespaced with 'loom:' prefix.</note>\n<available-agents>\n<agent name=\"loom:planner\">Creates implementation plans from context.md</agent>\n<agent name=\"loom:code-reviewer\">Reviews plans and implementations</agent>\n<agent name=\"loom:implementer\">Executes individual tasks from tasks.md</agent>\n<agent name=\"loom:explorer\">Fast codebase reconnaissance</agent>\n</available-agents>\n<note>Use Task(subagent_type=\"loom:planner\") to delegate to Loom agents.</note>\n<note>Claude Code built-ins (Explore, Plan, general-purpose) are also available without prefix.</note>\n\n<prompt-tips>\nWhen delegating loom workflow tasks, include in the prompt:\n- The ticket ID if working on a specific ticket\n- The session path (.claude/loom/threads/{ticket-id}/)\n- What artifacts the agent should read or create\n- What skill to invoke if creating loom artifacts\n</prompt-tips>\n\n</delegation-guidance>"
+            "prompt": "<delegation-guidance>\n\n<loom-agents prefix=\"loom:\">\n<agent name=\"loom:planner\">Creates implementation plans from context.md</agent>\n<agent name=\"loom:code-reviewer\">Reviews plans and implementations</agent>\n<agent name=\"loom:implementer\">Executes individual tasks from tasks.md</agent>\n<agent name=\"loom:explorer\">Fast codebase reconnaissance</agent>\n</loom-agents>\n\n<usage>Task(subagent_type=\"loom:planner\") to delegate to Loom agents.</usage>\n<note>Claude Code built-ins (Explore, Plan, general-purpose) are also available without prefix.</note>\n\n<prompt-tips for-loom-agents=\"true\">\nInclude: ticket ID, session path, artifacts to read/create, skill to invoke.\n</prompt-tips>\n\n</delegation-guidance>"
           }
         ]
       }
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/scripts/handle-subagent-complete.sh",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use/handle-subagent-complete.js",
             "timeout": 5000
           }
         ]
