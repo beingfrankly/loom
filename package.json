@@ -1,0 +1,16 @@
+{
+  "name": "loom",
+  "version": "0.5.10",
+  "private": true,
+  "type": "module",
+  "description": "Multi-agent orchestration plugin for Claude Code",
+  "scripts": {
+    "release": "commit-and-tag-version",
+    "release:minor": "commit-and-tag-version --release-as minor",
+    "release:major": "commit-and-tag-version --release-as major",
+    "release:dry": "commit-and-tag-version --dry-run"
+  },
+  "devDependencies": {
+    "commit-and-tag-version": "^12.5.0"
+  }
+}

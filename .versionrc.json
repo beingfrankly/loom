@@ -1,0 +1,12 @@
+{
+  "packageFiles": ["package.json"],
+  "bumpFiles": [
+    { "filename": "package.json", "type": "json" },
+    { "filename": "loom/.claude-plugin/plugin.json", "type": "json" }
+  ],
+  "scripts": {
+    "postbump": "node scripts/sync-version.js"
+  },
+  "tagPrefix": "v",
+  "header": "# Changelog\n\nAll notable changes to Loom will be documented in this file.\n"
+}
