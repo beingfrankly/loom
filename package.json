@@ -1,6 +1,6 @@
 {
   "name": "loom",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "private": true,
   "type": "module",
   "description": "Multi-agent orchestration plugin for Claude Code",
