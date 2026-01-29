@@ -1,7 +1,7 @@
 ---
 name: plan-template
 description: Template for creating implementation-plan.md. MUST invoke before writing plan.
-user-invocable: true
+user-invocable: false
 ---
 
 # Plan Template

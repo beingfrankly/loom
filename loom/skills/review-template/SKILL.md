@@ -1,7 +1,7 @@
 ---
 name: review-template
 description: Template for creating review files. MUST invoke before writing any review.
-user-invocable: true
+user-invocable: false
 ---
 
 # Review Template

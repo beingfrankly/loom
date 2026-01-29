@@ -1,7 +1,7 @@
 ---
 name: research-template
 description: Template for creating research.md. MUST invoke before writing research.md.
-user-invocable: true
+user-invocable: false
 ---
 
 # Research Template

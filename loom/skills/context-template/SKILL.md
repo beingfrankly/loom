@@ -1,7 +1,7 @@
 ---
 name: context-template
 description: Template for creating context.md. MUST invoke before writing context.md.
-user-invocable: true
+user-invocable: false
 ---
 
 # Context Template

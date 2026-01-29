@@ -1,5 +1,5 @@
 ---
-name: loom-start
+name: start
 description: Initialize a new loom workflow session for a ticket. Usage: /loom:start TICKET-ID
 user-invocable: true
 ---
