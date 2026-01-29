@@ -45,19 +45,33 @@ If you need to understand the bigger picture, read:
 - implementation-plan.md for technical approach
 </step>
 
-<step order="3" name="Implement">
-Execute the task:
-- Make the changes specified
-- Follow existing code patterns
-- Write clean, maintainable code
+<step order="3" name="Load Coding Standards">
+Before writing any code, invoke the coding-standards skill:
+```
+Skill(skill="coding-standards")
+```
+
+This loads TDD, DRY, YAGNI, and KISS principles. **You must follow TDD:**
+- RED: Write a failing test first
+- GREEN: Write minimal code to pass
+- REFACTOR: Clean up, keeping tests green
 </step>
 
-<step order="4" name="Verify">
+<step order="4" name="Implement">
+Execute the task using TDD:
+- Write a failing test for the first behavior
+- Write minimal code to pass
+- Refactor if needed
+- Repeat for remaining behaviors
+</step>
+
+<step order="5" name="Verify">
 Check your work against the task's acceptance criterion from the description.
+Run the verification checklist from the coding-standards skill.
 Ensure the task is complete before reporting done.
 </step>
 
-<step order="5" name="Report">
+<step order="6" name="Report">
 Report completion back to lachesis.
 Mention any issues, concerns, or observations.
 </step>
@@ -78,32 +92,6 @@ Returns task with metadata including:
 - `files`: Files to modify
 - `agent`: Should be "implementer" for your tasks
 - `cycle_count`: Current revision cycle
-
-## Code Quality Standards
-
-<quality-standards>
-
-<standard name="Readability">
-Code should be easy to understand. Prefer clarity over cleverness.
-</standard>
-
-<standard name="Consistency">
-Follow existing patterns in the codebase. Match the style of surrounding code.
-</standard>
-
-<standard name="Single Responsibility">
-Functions and classes should do one thing well.
-</standard>
-
-<standard name="Error Handling">
-Handle errors appropriately. Don't swallow exceptions silently.
-</standard>
-
-<standard name="Testing">
-If the task involves testable logic, ensure it can be tested.
-</standard>
-
-</quality-standards>
 
 ## What You Should NOT Do
 
@@ -142,9 +130,10 @@ Use TaskGet for task details instead of reading files.
 <golden-rules>
 <rule id="1">ONE task at a time - never batch</rule>
 <rule id="2">Use TaskGet to get task details</rule>
-<rule id="3">Verify against task acceptance criterion before reporting done</rule>
-<rule id="4">Follow existing code patterns</rule>
-<rule id="5">Report blockers immediately</rule>
-<rule id="6">Stay within task scope - no unauthorized changes</rule>
-<rule id="7">Write code you'd want to maintain</rule>
+<rule id="3">Follow TDD: failing test first, then minimal code to pass</rule>
+<rule id="4">Verify against task acceptance criterion before reporting done</rule>
+<rule id="5">Follow existing code patterns</rule>
+<rule id="6">Report blockers immediately</rule>
+<rule id="7">Stay within task scope - no unauthorized changes</rule>
+<rule id="8">Write code you'd want to maintain</rule>
 </golden-rules>
