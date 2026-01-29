@@ -1,5 +1,5 @@
 ---
-name: loom-workflow
+name: workflow
 description: Master workflow for multi-agent orchestration. Invoke at session start or when coordinating agents.
 user-invocable: true
 ---
@@ -149,9 +149,9 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <cycle-limit>
 After 3 implementer-code-reviewer cycles without APPROVED, the task is stuck.
 This prevents endless "gold-plating" loops. Human must decide:
-- Accept current implementation as "good enough" (/loom-approve)
-- Provide specific guidance to break the deadlock (/loom-reject "guidance")
-- Skip the task and note it as blocked (/loom-skip "reason")
+- Accept current implementation as "good enough" (/loom:approve)
+- Provide specific guidance to break the deadlock (/loom:reject "guidance")
+- Skip the task and note it as blocked (/loom:skip "reason")
 </cycle-limit>
 
 <output>Code changes, review-task-*.md (mandatory)</output>
@@ -259,26 +259,26 @@ Every task includes this metadata:
 
 <human-commands>
 
-<command name="/loom-status">
+<command name="/loom:status">
 Display current workflow state, progress, and suggested next action.
 Uses TaskList to show task progress.
 </command>
 
-<command name="/loom-approve">
+<command name="/loom:approve">
 Approve the current task after code review.
 - Uses TaskUpdate to mark task completed
 - Resets cycle_count to 0
 - Reports next pending task
 </command>
 
-<command name="/loom-reject" args="feedback">
+<command name="/loom:reject" args="feedback">
 Reject current task and request another revision.
 - Increments cycle_count in metadata
 - Records feedback
 - If cycle_count >= 3, marks task as blocked
 </command>
 
-<command name="/loom-skip" args="reason">
+<command name="/loom:skip" args="reason">
 Skip a blocked task and move to the next one.
 - Marks task as blocked in metadata
 - Records reason

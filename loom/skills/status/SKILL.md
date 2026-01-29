@@ -1,5 +1,5 @@
 ---
-name: loom-status
+name: status
 description: Display current loom workflow state. Shows phase, current task, cycle count, and progress.
 user-invocable: true
 ---
@@ -15,7 +15,7 @@ Provides a quick overview of where we are in the process using native task syste
 
 <usage>
 ```
-/loom-status
+/loom:status
 ```
 No arguments needed. Displays status of the active session and native tasks.
 </usage>
@@ -152,9 +152,9 @@ Delegate to loom:code-reviewer to review the task implementation
 
 <suggestion condition="task cycle >= 3">
 Human intervention needed:
-- /loom-approve : Accept current implementation
-- /loom-reject "guidance" : Provide specific guidance
-- /loom-skip "reason" : Skip and move to next task
+- /loom:approve : Accept current implementation
+- /loom:reject "guidance" : Provide specific guidance
+- /loom:skip "reason" : Skip and move to next task
 </suggestion>
 
 <suggestion condition="all tasks complete">
@@ -180,4 +180,4 @@ Session directory: .claude/loom/threads/{ticket-id}/
 ```
 </no-session-output>
 
-</loom-status-system>
+</loom:status-system>

@@ -1,5 +1,5 @@
 ---
-name: loom-reject
+name: reject
 description: Human rejects current task with feedback. Increments cycle count, sets status to addressing_feedback for another revision.
 user-invocable: true
 ---
@@ -16,8 +16,8 @@ Provides a way for humans to inject specific feedback into the revision cycle.
 
 <usage>
 ```
-/loom-reject "Your specific feedback here"
-/loom-reject The error handling needs to cover edge case X
+/loom:reject "Your specific feedback here"
+/loom:reject The error handling needs to cover edge case X
 ```
 The feedback argument is optional but highly recommended - it guides the next revision.
 </usage>
@@ -33,7 +33,7 @@ This command increments cycle_count in task metadata. After 3 cycles, the task b
 If already at cycle 3, this command will:
 1. Still record the feedback
 2. Mark the task as blocked (via metadata)
-3. Suggest using /loom-skip or providing more specific guidance
+3. Suggest using /loom:skip or providing more specific guidance
 </cycle-limit-awareness>
 
 <workflow>
@@ -134,8 +134,8 @@ Feedback recorded: "{feedback}"
 Status: BLOCKED - Human intervention required
 
 Options:
-1. /loom-approve - Accept the current implementation as "good enough"
-2. /loom-skip - Skip this task and mark it blocked, move to next task
+1. /loom:approve - Accept the current implementation as "good enough"
+2. /loom:skip - Skip this task and mark it blocked, move to next task
 3. Provide very specific guidance and manually reset cycle count
 4. Simplify or split the task
 
@@ -146,8 +146,8 @@ This typically indicates the requirements need clarification or the task is too 
 
 <error-handling>
 <error condition="no-task-in-progress">
-No task is currently in progress. Use /loom-status to check current state.
+No task is currently in progress. Use /loom:status to check current state.
 </error>
 </error-handling>
 
-</loom-reject-system>
+</loom:reject-system>

@@ -1,5 +1,5 @@
 ---
-name: loom-approve
+name: approve
 description: Human approves the current task after code review. Marks task complete, resets cycle count, moves to next task.
 user-invocable: true
 ---
@@ -94,7 +94,7 @@ Delegate to loom:code-reviewer for final verification against context.md.
 
 <error-handling>
 <error condition="no-task-in-progress">
-No task is currently in progress. Use /loom-status to check current state.
+No task is currently in progress. Use /loom:status to check current state.
 </error>
 <error condition="task-not-reviewed">
 This task hasn't been reviewed yet. Delegate to loom:code-reviewer first.

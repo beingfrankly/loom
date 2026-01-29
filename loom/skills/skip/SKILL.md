@@ -1,5 +1,5 @@
 ---
-name: loom-skip
+name: skip
 description: Skip a blocked task and move to the next one. Marks task as blocked and records reason.
 user-invocable: true
 ---
@@ -16,9 +16,9 @@ Marks the task as blocked and moves to the next pending task.
 
 <usage>
 ```
-/loom-skip "Reason for skipping"
-/loom-skip Blocked by external dependency, will revisit later
-/loom-skip
+/loom:skip "Reason for skipping"
+/loom:skip Blocked by external dependency, will revisit later
+/loom:skip
 ```
 The reason argument is optional but recommended for audit trail.
 </usage>
@@ -130,8 +130,8 @@ Options:
 
 <error-handling>
 <error condition="no-task-in-progress">
-No task is currently in progress to skip. Use /loom-status to check current state.
+No task is currently in progress to skip. Use /loom:status to check current state.
 </error>
 </error-handling>
 
-</loom-skip-system>
+</loom:skip-system>

@@ -1,5 +1,7 @@
 ---
-description: "Create or edit context.md for a Loom session. Defines What, Why, and Acceptance Criteria."
+name: context
+description: Create or edit context.md for a Loom session. Defines What, Why, and Acceptance Criteria.
+user-invocable: false
 ---
 
 Invoke the context-template skill and follow it exactly.

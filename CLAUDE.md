@@ -289,6 +289,6 @@ Edit `loom/hooks/hooks.json`:
 
 ## Version Information
 
-- **Plugin Version**: 0.5.14
+- **Plugin Version**: 0.5.15
 - **License**: MIT
 - **Author**: Frank van Eldijk

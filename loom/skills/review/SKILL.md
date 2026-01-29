@@ -1,5 +1,7 @@
 ---
-description: "Review a Loom plan or task implementation against context.md."
+name: review
+description: Review a Loom plan or task implementation against context.md.
+user-invocable: false
 ---
 
 Invoke the review-template skill and follow it exactly.

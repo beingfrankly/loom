@@ -14,3 +14,6 @@ node_modules/
 
 # Loom session artifacts (generated at runtime)
 .loom/sessions/
+
+# Local development marketplace
+loom-dev/

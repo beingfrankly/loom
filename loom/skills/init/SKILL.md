@@ -1,19 +1,19 @@
 ---
-name: start
-description: Initialize a new loom workflow session for a ticket. Usage: /loom:start TICKET-ID
+name: init
+description: Initialize a new loom workflow session for a ticket. Usage: /loom:init TICKET-ID
 user-invocable: true
 ---
 
 # Loom Session Initialization
 
 <usage>
-**Command:** `/loom:start TICKET-ID`
+**Command:** `/loom:init TICKET-ID`
 
 **Examples:**
-- `/loom:start PROJ-123` (Jira)
-- `/loom:start #456` (GitHub issue)
-- `/loom:start feature-auth-flow` (custom identifier)
-- `/loom:start my-feature` (descriptive name)
+- `/loom:init PROJ-123` (Jira)
+- `/loom:init #456` (GitHub issue)
+- `/loom:init feature-auth-flow` (custom identifier)
+- `/loom:init my-feature` (descriptive name)
 </usage>
 
 <ticket-id-handling>
