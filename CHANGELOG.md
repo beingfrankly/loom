@@ -2,6 +2,8 @@
 
 All notable changes to Loom will be documented in this file.
 
+## [0.5.15](https://github.com/beingfrankly/loom/compare/v0.5.14...v0.5.15) (2026-01-29)
+
 ## [0.5.14](https://github.com/beingfrankly/loom/compare/v0.5.13...v0.5.14) (2026-01-28)
 
 ## [0.5.13](https://github.com/beingfrankly/loom/compare/v0.5.12...v0.5.13) (2026-01-28)
