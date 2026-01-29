@@ -2,6 +2,13 @@
 
 All notable changes to Loom will be documented in this file.
 
+## [0.5.16](https://github.com/beingfrankly/loom/compare/v0.5.15...v0.5.16) (2026-01-29)
+
+
+### Features
+
+* add coding-standards skill for the code-implementer subagent ([dfbf0e5](https://github.com/beingfrankly/loom/commit/dfbf0e5516f4fd858411582ec7dbc4cf2b7b4d40))
+
 ## [0.5.15](https://github.com/beingfrankly/loom/compare/v0.5.14...v0.5.15) (2026-01-29)
 
 ## [0.5.14](https://github.com/beingfrankly/loom/compare/v0.5.13...v0.5.14) (2026-01-28)
