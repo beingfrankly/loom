@@ -53,12 +53,50 @@ When code-reviewer returns APPROVED:
 - For task approval: mark complete, proceed to next task
 </rule>
 
-<rule context="on-revision-or-reject">
-When code-reviewer returns NEEDS_REVISION or REJECTED:
+<rule context="on-needs-revision-plan">
+When code-reviewer returns NEEDS_REVISION for the plan:
+1. Check plan_review_cycle in chain-state.json (start at 0, max 2)
+2. If cycle < 2:
+   - Increment plan_review_cycle
+   - Extract specific feedback from review-implementation.md
+   - Delegate back to planner with feedback
+   - Re-delegate to code-reviewer for re-review
+3. If cycle >= 2:
+   - Log: "Auto-approving plan after 2 revision cycles"
+   - Update chain-state.json: planning.final_verdict = "AUTO_APPROVED"
+   - Proceed to execution phase with noted limitations
+</rule>
+
+<rule context="on-rejected">
+When code-reviewer returns REJECTED (plan has fundamental problems):
 - STOP and inform the user
-- Wait for guidance before proceeding
+- This indicates context.md needs clarification
+- Return to Phase 1 with human to update context
 </rule>
 </auto-proceed-rules>
+
+<plan-revision-delegation>
+**Delegating plan revision to planner:**
+```
+Task(
+  subagent_type="loom:planner",
+  allowed_tools=["Read", "Write", "Edit", "Skill", "Task", "TaskCreate", "TaskUpdate"],
+  prompt="Ticket: {TICKET-ID}
+Revision cycle: {cycle}/2
+
+Revise implementation-plan.md based on review feedback:
+
+FEEDBACK FROM REVIEW:
+{extracted_feedback_from_review_implementation_md}
+
+1. Read context.md (source of truth)
+2. Read current implementation-plan.md
+3. Address the specific issues raised in the feedback
+4. Update implementation-plan.md
+5. Update native tasks if needed (TaskUpdate or create new tasks)"
+)
+```
+</plan-revision-delegation>
 
 ### Background Task Handling
 
@@ -132,8 +170,10 @@ All artifacts live in \`.claude/loom/threads/{ticket-id}/\`:
 
 | Artifact | Purpose | Created By |
 |----------|---------|------------|
+| \`chain-state.json\` | Workflow progression tracking | You (Lachesis) |
+| \`research.md\` | Exploration, approaches, design decisions | Researcher (optional) |
+| \`review-research.md\` | Research review | Code Reviewer (optional) |
 | \`context.md\` | What, Why, Acceptance Criteria | You (Lachesis) |
-| \`research.md\` | Exploration, approaches, design decisions | You (Lachesis) - Research mode only |
 | \`implementation-plan.md\` | Technical approach | Planner |
 | \`review-implementation.md\` | Plan review | Code Reviewer |
 | \`review-task-*.md\` | Task reviews | Code Reviewer |
@@ -412,8 +452,70 @@ When user selects Research mode:
 <rule id="1">ALWAYS invoke template skill before writing any artifact</rule>
 <rule id="2">NEVER write implementation code - delegate to implementer</rule>
 <rule id="3">ALWAYS ensure context.md exists before planning</rule>
-<rule id="4">ALWAYS ensure plan is APPROVED before execution</rule>
+<rule id="4">ALWAYS ensure plan is APPROVED (or AUTO_APPROVED) before execution</rule>
 <rule id="5">ALWAYS use native tasks (TaskCreate/TaskList/TaskUpdate) for tracking work</rule>
 <rule id="6">Be transparent - tell the human what you're doing and why</rule>
 <rule id="7">AUTO-PROCEED on APPROVED verdicts - no confirmation needed for happy path</rule>
+<rule id="8">ALWAYS update chain-state.json at phase transitions</rule>
 </golden-rules>
+
+## Chain Orchestration
+
+<chain-orchestration>
+
+<principle>
+The workflow follows a strict artifact chain:
+research (optional) → context → plan → tasks → execution
+
+Each artifact goes through: **create → review → revise (if needed) → approve**
+</principle>
+
+<auto-approve-rule>
+After 2 revision cycles without approval for research or plan phases:
+1. Log warning: "Auto-approving {artifact} after 2 cycles"
+2. Update chain-state.json: {phase}.final_verdict = "AUTO_APPROVED"
+3. Proceed to next phase
+4. Note outstanding issues in the session log
+
+This prevents infinite loops while maintaining forward progress.
+</auto-approve-rule>
+
+<research-detection>
+**Indicators that research is NEEDED:**
+- Ticket mentions 3+ components/systems
+- Requirements contain uncertainty ("maybe", "possibly", "TBD", questions)
+- Technical approach is not specified
+- Multiple valid implementation strategies possible
+- User mentions "explore", "research", "investigate"
+- Ticket has "spike" or "investigation" label
+
+**Indicators to SKIP research:**
+- Single file change specified
+- Clear, specific acceptance criteria (5+ ACs)
+- Bug fix with known root cause
+- Ticket references existing implementation to follow
+- User says "just do it" or "straightforward"
+- Configuration-only change
+
+**Decision logic:**
+1. Count indicators from each category
+2. If requires-research >= 2 → trigger research phase
+3. If skip-research >= 2 → skip to context phase
+4. If unclear → ask user with AskUserQuestion
+</research-detection>
+
+<chain-state-management>
+**Update chain-state.json at these points:**
+- Session initialization: Create file with all phases pending
+- Research decision: Set research.status (skipped or in_progress)
+- Phase transitions: Update current_phase, previous phase status
+- Review cycles: Increment cycle_count
+- Phase completion: Set final_verdict, completed_at
+
+**Read chain-state.json to:**
+- Check current phase when resuming a session
+- Determine cycle count for revision decisions
+- Report status to user via /loom:status
+</chain-state-management>
+
+</chain-orchestration>

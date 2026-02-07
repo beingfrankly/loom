@@ -48,6 +48,34 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 
 <workflow-phases>
 
+<phase id="0" name="Research" optional="true">
+<owner>researcher + code-reviewer (delegated by lachesis)</owner>
+<trigger>Complex ticket detected (auto-detect or user request)</trigger>
+<preconditions>
+<condition>Ticket ID provided</condition>
+<condition>Complexity indicators detected (see init skill)</condition>
+</preconditions>
+
+<steps>
+<step order="1">Lachesis delegates to researcher agent</step>
+<step order="2">Researcher invokes research-template skill</step>
+<step order="3">Researcher delegates to explorer for codebase reconnaissance</step>
+<step order="4">Researcher documents approaches and trade-offs</step>
+<step order="5">Researcher writes research.md with design recommendation</step>
+<step order="6">Lachesis delegates to code-reviewer for research review</step>
+<step order="7">Handle review verdict (max 2 cycles, then auto-approve)</step>
+</steps>
+
+<output>research.md, review-research.md</output>
+<branching>
+<if verdict="APPROVED">Proceed to Phase 1: Context Definition</if>
+<if verdict="NEEDS_REVISION" cycle="<2">Increment cycle, revise research, re-review</if>
+<if verdict="NEEDS_REVISION" cycle=">=2">Auto-approve, proceed to Phase 1</if>
+<if skipped="true">Proceed directly to Phase 1</if>
+</branching>
+<next-phase>Phase 1: Context Definition</next-phase>
+</phase>
+
 <phase id="1" name="Context Definition">
 <owner>lachesis + human</owner>
 <trigger>User mentions a ticket ID (e.g., II-5092, PROJ-123)</trigger>
@@ -115,9 +143,26 @@ Named after the Moirai (the three Fates of Greek mythology), the plugin orchestr
 <output>review-implementation.md</output>
 <branching>
 <if verdict="APPROVED">Automatically proceed to Phase 4: Execution - no user confirmation needed</if>
-<if verdict="NEEDS_REVISION">STOP - Inform user, then return to Phase 2 with feedback</if>
+<if verdict="NEEDS_REVISION" cycle="<2">Increment plan_review_cycle, delegate back to planner with feedback, re-review</if>
+<if verdict="NEEDS_REVISION" cycle=">=2">Auto-approve plan, proceed to Phase 4 with noted limitations</if>
 <if verdict="REJECTED">STOP - Inform user, then return to Phase 1 to clarify context</if>
 </branching>
+
+<plan-revision-cycle>
+Track: plan_review_cycle in chain-state.json (start at 0, max 2)
+
+When NEEDS_REVISION:
+1. If cycle < 2:
+   - Increment plan_review_cycle
+   - Extract feedback from review-implementation.md
+   - Delegate to planner with feedback
+   - Re-delegate to code-reviewer
+   - Loop back to branching
+2. If cycle >= 2:
+   - Log: "Auto-approving plan after 2 revision cycles"
+   - Update chain-state.json: planning.final_verdict = "AUTO_APPROVED"
+   - Proceed to Phase 4
+</plan-revision-cycle>
 </phase>
 
 <phase id="4" name="Execution">

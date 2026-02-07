@@ -30,6 +30,12 @@ The code-reviewer's job is to find problems - assume something is wrong and loca
 <reviews>Complete implementation against all acceptance criteria</reviews>
 <when>After all tasks complete</when>
 </type>
+<type name="research-review">
+<file>review-research.md</file>
+<reviews>research.md - exploration quality and approach viability</reviews>
+<when>After researcher creates research.md, before context definition</when>
+<cycle-limit>Max 2 researcher↔code-reviewer cycles before auto-approve</cycle-limit>
+</type>
 </review-types>
 
 <verdicts>
@@ -66,6 +72,7 @@ Examples: Alternative approaches, future considerations
 </severity-levels>
 
 <file-location>
+.claude/loom/threads/{ticket-id}/review-research.md
 .claude/loom/threads/{ticket-id}/review-implementation.md
 .claude/loom/threads/{ticket-id}/review-task-{NNN}.md
 </file-location>
@@ -220,6 +227,94 @@ Examples: Alternative approaches, future considerations
 {Any observations for the execution log}
 ```
 </template-task-review>
+
+<template-research-review>
+```markdown
+# Review: Research - {TICKET-ID}
+
+**Ticket:** {TICKET-ID}
+**Reviewed:** {YYYY-MM-DDTHH:MM:SSZ}
+**Reviewer:** code-reviewer
+**Verdict:** {APPROVED | NEEDS_REVISION}
+
+---
+
+## Summary
+
+{2-3 sentence summary of research quality and viability of recommended approach}
+
+---
+
+## Exploration Quality
+
+- [ ] At least 3 specific findings documented
+- [ ] Relevant files and patterns identified with paths
+- [ ] Exploration is focused on the topic
+- [ ] References include actual file paths from codebase
+
+**Assessment:** {Adequate | Insufficient exploration}
+
+{If insufficient, explain what's missing}
+
+---
+
+## Approach Viability
+
+- [ ] At least 2 distinct approaches documented
+- [ ] Pros/cons are realistic and balanced
+- [ ] Complexity assessments are reasonable
+- [ ] Trade-offs are clearly articulated
+
+**Assessment:** {Approaches are viable | Need more options | Approaches have flaws}
+
+{If issues, explain what's wrong with the approaches}
+
+---
+
+## Design Decision
+
+- [ ] Chosen approach is clearly stated
+- [ ] Rationale references specific trade-offs from options
+- [ ] Open questions are actionable (not vague)
+- [ ] Decision aligns with exploration findings
+
+**Assessment:** {Well-justified | Needs clarification}
+
+{If needs clarification, explain what's missing in the rationale}
+
+---
+
+## Issues Found
+
+### Critical Issues
+
+{None | List critical issues that block approval}
+
+### Major Issues
+
+{None | List major issues}
+
+### Minor Issues
+
+{None | List minor issues - these don't block approval}
+
+---
+
+## Verdict Rationale
+
+{Explain why APPROVED or NEEDS_REVISION}
+
+{If NEEDS_REVISION, list specific items that must be addressed}
+
+---
+
+## Notes for Context Definition
+
+{Observations that should inform the context.md phase}
+- {Note 1}
+- {Note 2}
+```
+</template-research-review>
 
 <review-guidelines>
 
