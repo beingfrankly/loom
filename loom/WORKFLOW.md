@@ -338,7 +338,7 @@ flowchart TD
 
 | Skill | Used By | Purpose |
 |-------|---------|---------|
-| `loom-workflow` | Lachesis, Planner, Code Reviewer | Master workflow and delegation patterns |
+| `loom:weave` | Entry point | Workflow initialization and comprehensive guidance |
 | `context-template` | Lachesis | Template for context.md |
 | `plan-template` | Planner | Template for implementation-plan.md |
 | `review-template` | Code Reviewer | Template for review files |

@@ -71,15 +71,15 @@ Skills provide templates and workflow guidance. Agents invoke skills before writ
 
 | Skill | Purpose |
 |-------|---------|
-| `loom-workflow` | Master workflow, agent roles, delegation patterns |
+| `loom:weave` | Entry point - weave a new thread, asks about ticket ID and research mode |
 | `context-template` | Template for context.md |
 | `plan-template` | Template for implementation-plan.md |
 | `review-template` | Template for review files with verdicts |
 | `research-template` | Template for research.md |
-| `loom-status` | Display current workflow state |
-| `loom-approve` | Approve task and move to next |
-| `loom-reject` | Reject task with feedback |
-| `loom-skip` | Skip blocked task |
+| `loom:status` | Display current workflow state |
+| `loom:approve` | Approve task and move to next |
+| `loom:reject` | Reject task with feedback |
+| `loom:skip` | Skip blocked task |
 
 ### Agents (`agents/`)
 
@@ -142,13 +142,15 @@ Tasks are managed using Claude Code's native task tools instead of a tasks.md fi
 ## The Flow
 
 ```
-Human: "I need to work on ii-5092" or "I want to research caching strategies"
+Human: /loom:weave
 
-0. MODE SELECTION (Lachesis asks)
-   -> Ticket mode: Implement a specific feature/fix
-   -> Research mode: Explore, analyze, document findings
+Lachesis: I'll help you weave a new thread. Let me ask a few questions:
+- Do you have a ticket number? [Yes/No]
+- Do you want to research a specific topic first? [Yes/No]
 
---- RESEARCH MODE ---
+[Interactive flow based on answers]
+
+--- RESEARCH MODE (if selected) ---
 
 1. CONTEXT
    -> Lachesis invokes context-template skill
@@ -216,10 +218,11 @@ Tasks are managed via native task system (not in files).
 
 | Command | Purpose |
 |---------|---------|
-| `/loom-status` | Display current state, task progress |
-| `/loom-approve` | Approve task, mark complete, move to next |
-| `/loom-reject "feedback"` | Reject with feedback, increment cycle |
-| `/loom-skip "reason"` | Skip blocked task, move to next |
+| `/loom:weave` | Weave a new thread - interactive workflow initialization |
+| `/loom:status` | Display current state, task progress |
+| `/loom:approve` | Approve task, mark complete, move to next |
+| `/loom:reject "feedback"` | Reject with feedback, increment cycle |
+| `/loom:skip "reason"` | Skip blocked task, move to next |
 
 ## Usage Example
 
@@ -302,15 +305,15 @@ loom/
 │   ├── implementer.md        # Developer (Sonnet) - Clotho
 │   └── explorer.md           # Scout (Haiku)
 ├── skills/
-│   ├── loom-workflow/        # Master workflow skill
+│   ├── weave/                # Entry point - weave a new thread
 │   ├── context-template/     # context.md template
 │   ├── plan-template/        # implementation-plan.md template
 │   ├── review-template/      # review files template
 │   ├── research-template/    # research.md template
-│   ├── loom-status/          # Status display
-│   ├── loom-approve/         # Task approval
-│   ├── loom-reject/          # Task rejection
-│   └── loom-skip/            # Task skip
+│   ├── status/               # Status display
+│   ├── approve/              # Task approval
+│   ├── reject/               # Task rejection
+│   └── skip/                 # Task skip
 ├── hooks/
 │   └── hooks.json            # Lifecycle hooks with guardrails
 └── README.md

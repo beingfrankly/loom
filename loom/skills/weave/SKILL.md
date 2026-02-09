@@ -1,30 +1,44 @@
 ---
-name: init
-description: Initialize a new loom workflow session for a ticket. Usage: /loom:init TICKET-ID
+name: weave
+description: Weave a new thread in the loom - initialize a workflow session. Usage: /loom:weave
 user-invocable: true
 ---
 
 # Loom Session Initialization
 
 <usage>
-**Command:** `/loom:init TICKET-ID`
+**Command:** `/loom:weave`
 
-**Examples:**
-- `/loom:init PROJ-123` (Jira)
-- `/loom:init #456` (GitHub issue)
-- `/loom:init feature-auth-flow` (custom identifier)
-- `/loom:init my-feature` (descriptive name)
+The skill starts by asking two questions to understand your needs:
+1. Do you have a ticket number? (Jira, GitHub, custom identifier)
+2. Do you want to research a specific topic?
+
+Based on your answers, the workflow branches accordingly.
 </usage>
 
-<ticket-id-handling>
-Accept any identifier the user provides. The ticket ID is used to:
-1. Create the session directory (normalized to lowercase, special chars replaced with hyphens)
-2. Track the work in session artifacts and native tasks
+<interactive-entry>
+When invoked, start by using AskUserQuestion tool with these two questions:
 
-If no ticket ID is provided:
-1. Ask the user to provide an identifier for this work session
-2. Suggest they use their issue tracker ID or a descriptive name
-</ticket-id-handling>
+**Question 1:**
+- Question: "Do you have a ticket number or identifier for this work?"
+- Header: "Ticket ID"
+- Options:
+  - Label: "Yes, I have a ticket ID", Description: "I'll provide a Jira, GitHub, or custom identifier"
+  - Label: "No, let me describe it", Description: "I'll provide a descriptive name for this work"
+
+**Question 2:**
+- Question: "Do you want to research a specific topic before defining requirements?"
+- Header: "Research Mode"
+- Options:
+  - Label: "Yes, research first", Description: "Explore the codebase and document findings before planning"
+  - Label: "No, skip to requirements", Description: "I have clear requirements, skip research and go straight to context definition"
+
+Based on answers:
+- If Q1 = "Yes" → Ask for ticket ID, attempt to fetch ticket data
+- If Q1 = "No" → Ask for descriptive name (e.g., "feature-auth-flow")
+- If Q2 = "Yes" → Enter Research Mode (Phase 0)
+- If Q2 = "No" → Skip to Context Definition (Phase 1)
+</interactive-entry>
 
 <initialization-steps>
 When a valid ticket ID is provided:
@@ -60,6 +74,40 @@ Ask the user to describe what they want to build. Guide them to provide:
 You have initialized a Loom multi-agent orchestration session.
 Lachesis coordinates specialized agents through a structured workflow.
 </identity>
+
+<agents-overview>
+Loom coordinates specialized AI agents through a structured workflow:
+
+<agent name="lachesis" model="opus" color="purple">
+  <role>Coordinator - decides WHAT and WHO, never implements</role>
+  <delegates-to>planner, code-reviewer, implementer, explorer</delegates-to>
+</agent>
+<agent name="planner" model="sonnet" color="blue">
+  <role>Architect - creates implementation plans and native tasks</role>
+  <creates>implementation-plan.md, native tasks via TaskCreate</creates>
+</agent>
+<agent name="code-reviewer" model="sonnet" color="orange">
+  <role>Reviewer - validates plans and implementations against context</role>
+  <creates>review-implementation.md, review-task-*.md</creates>
+</agent>
+<agent name="implementer" model="sonnet" color="green">
+  <role>Developer - executes individual tasks, writes code</role>
+  <creates>Code changes</creates>
+</agent>
+<agent name="explorer" model="haiku" color="cyan">
+  <role>Scout - fast codebase reconnaissance</role>
+  <creates>Information for other agents</creates>
+</agent>
+</agents-overview>
+
+<auto-progression-rules>
+The workflow uses automatic progression on the happy path:
+- After planner completes: Immediately delegate to code-reviewer (background mode)
+- On APPROVED verdict: Automatically proceed to next phase
+- On NEEDS_REVISION/REJECTED: Stop and wait for user guidance
+- Revision cycle limits: Max 2 cycles for research/plan, then auto-approve
+- Task execution: Max 3 cycles, then human escalation
+</auto-progression-rules>
 
 <golden-rules priority="critical">
 <rule id="1">NEVER write an artifact without first invoking its template skill</rule>
@@ -98,7 +146,6 @@ Tasks are managed using Claude Code's native task system:
 </workflow-phases-summary>
 
 <available-skills>
-<skill name="loom-workflow">Master workflow and delegation patterns</skill>
 <skill name="context-template">Template for context.md</skill>
 <skill name="plan-template">Template for implementation-plan.md</skill>
 <skill name="review-template">Template for review files with verdicts</skill>
@@ -176,7 +223,7 @@ This prompt chain orchestrates the initialization workflow. The main Claude Code
 **Prerequisite Check:**
 IF plan mode is active:
   1. Use AskUserQuestion tool with these parameters:
-     - Question: "Plan mode is currently active. The /loom:init workflow needs to create files and directories. Do you want to exit plan mode to proceed?"
+     - Question: "Plan mode is currently active. The /loom:weave workflow needs to create files and directories. Do you want to exit plan mode to proceed?"
      - Header: "Plan Mode"
      - Options:
        - Label: "Exit plan mode", Description: "Exit plan mode and continue with initialization"
@@ -187,18 +234,35 @@ IF plan mode is active:
      - Continue to step 1
 
   3. If user selects "Stay in plan mode":
-     - Respond: "Initialization cancelled. Run /loom:init again after exiting plan mode."
+     - Respond: "Initialization cancelled. Run /loom:weave again after exiting plan mode."
      - STOP
 </step>
 
-<step order="1" name="get-input">
-**Get Ticket or Description:**
-Ask user for ticket ID or feature description.
-- If ticket pattern detected (see step 2), proceed to fetch
-- If plain description, skip to step 3
+<step order="1" name="ask-questions">
+**Ask Entry Questions:**
+Use AskUserQuestion tool with the two questions defined in <interactive-entry> above:
+1. Ticket ID question (Yes/No)
+2. Research mode question (Yes/No)
+
+Store answers for routing in steps 2 and 2.5.
 </step>
 
-<step order="2" name="fetch-ticket" condition="ticket-pattern-detected">
+<step order="2" name="get-identifier" condition="always">
+**Get Work Identifier:**
+
+If Q1 answer = "Yes":
+  - Ask user to provide their ticket ID
+  - Detect pattern (#123, PROJ-123, owner/repo#123)
+  - If pattern detected, proceed to step 2.3 (fetch-ticket)
+  - If plain text, use as identifier and skip to step 2.5
+
+If Q1 answer = "No":
+  - Ask user for a descriptive name for this work session
+  - Use provided name as identifier (normalized to lowercase)
+  - Skip to step 2.5
+</step>
+
+<step order="2.3" name="fetch-ticket" condition="ticket-pattern-detected">
 **Delegate to ticket-fetcher:**
 When input matches ticket pattern (#123, PROJ-123, owner/repo#123):
 
@@ -217,37 +281,17 @@ If error returned, fall back to manual description input.
 </step>
 
 <step order="2.5" name="research-detect">
-**Detect if Research Needed:**
+**Determine Research Mode:**
 
-Analyze the ticket/input for complexity indicators:
+Use Q2 answer to decide:
 
-<requires-research>
-- Ticket mentions 3+ components/systems
-- Requirements contain uncertainty ("maybe", "possibly", "TBD", questions)
-- Technical approach is not specified
-- Multiple valid implementation strategies possible
-- User mentions "explore", "research", "investigate"
-- Ticket has "spike" or "investigation" label
-</requires-research>
+If Q2 = "Yes, research first":
+  - Proceed to step 2.6 (research-create)
 
-<skip-research>
-- Single file change specified
-- Clear, specific acceptance criteria (5+ ACs)
-- Bug fix with known root cause
-- Ticket references existing implementation to follow
-- User says "just do it" or "straightforward"
-- Configuration-only change
-</skip-research>
-
-**Decision logic:**
-1. Count indicators from each category
-2. If requires-research >= 2 → proceed to step 2.6
-3. If skip-research >= 2 → skip to step 3 (context)
-4. If unclear → ask user with AskUserQuestion:
-   - "Does this work need exploration first, or is the scope already clear?"
-   - Options: "Research first" / "Skip to context"
-
-Update chain-state.json: Set research.status based on decision.
+If Q2 = "No, skip to requirements":
+  - Update chain-state.json: research.status = "skipped"
+  - Set research.skipped_reason = "User opted to skip research phase"
+  - Skip to step 3 (write-context)
 </step>
 
 <step order="2.6" name="research-create" condition="research-needed">
@@ -369,12 +413,12 @@ Ask: "Context is ready. Shall I proceed to the planning phase?"
 <next-step>
 After initialization, the prompt chain guides the workflow:
 
-1. **With ticket ID:** Automatically fetches ticket data, writes context.md, reviews it
-2. **Without ticket ID:** Prompts for description, writes context.md, reviews it
+1. **Interactive Entry:** Ask two questions (ticket ID, research mode)
+2. **Route based on answers:**
+   - If ticket pattern detected: Fetch ticket data
+   - If research requested: Enter Phase 0 (Research)
+   - Otherwise: Proceed directly to Phase 1 (Context Definition)
+3. **Context validation:** Ensure context.md is validated before proceeding to planning
 
-The chain ensures context.md is validated before proceeding to planning.
-
-If the user provides a ticket ID directly with the command (e.g., `/loom:init PROJ-123`), begin the prompt chain at step 2 (ticket detection).
-
-Otherwise, ask the user: "What would you like to work on? You can provide a ticket ID (like #123 or PROJ-456) or describe what you want to build."
+The workflow adapts to user needs through the interactive entry questions.
 </next-step>
