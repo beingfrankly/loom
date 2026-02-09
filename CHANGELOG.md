@@ -2,6 +2,14 @@
 
 All notable changes to Loom will be documented in this file.
 
+## [0.5.17](https://github.com/beingfrankly/loom/compare/v0.5.15...v0.5.17) (2026-02-09)
+
+
+### Features
+
+* add coding-standards skill for the code-implementer subagent ([dfbf0e5](https://github.com/beingfrankly/loom/commit/dfbf0e5516f4fd858411582ec7dbc4cf2b7b4d40))
+* **loom:** add sequential artifact workflow with review cycles ([4f8b7fd](https://github.com/beingfrankly/loom/commit/4f8b7fdc1f7e2c1e9f1042477940eb92e89ed9d3))
+
 ## [0.5.16](https://github.com/beingfrankly/loom/compare/v0.5.15...v0.5.16) (2026-01-29)
 
 
